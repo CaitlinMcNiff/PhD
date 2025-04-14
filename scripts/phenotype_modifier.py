@@ -4,9 +4,10 @@ import re
 # Define input and output file paths
 input_file = "../NHGRI_EBI_GWAS/gwas_catalog_v1.0-associations_e113_r2025-02-18.tsv"
 output_files = {
-    "neurological": "../NHGRI_EBI_GWAS/neurological_gwas_test.bed",
-    "immunological": "../NHGRI_EBI_GWAS/immunological_gwas_test.bed",
-    "cancer": "../NHGRI_EBI_GWAS/cancer_gwas_test.bed"
+    "neurological": "../NHGRI_EBI_GWAS/neurological_gwas.bed",
+    "immunological": "../NHGRI_EBI_GWAS/immunological_gwas.bed",
+    "cancer": "../NHGRI_EBI_GWAS/cancer_gwas.bed",
+    "all": "../NHGRI_EBI_GWAS/all_gwas.bed"
 }
 
 # Define phenotype filters
@@ -54,6 +55,7 @@ df["position_plus1"] = df["position"].fillna(0).astype(int) + 1  # Handle NaNs a
 df["position"] = df["position"].astype('Int64')  # Keep NA values
 
 # Extract relevant columns
+df["pmid"] = df.iloc[:,1]
 df["phenotype"] = df.iloc[:, 7]
 df["risk_AF"] = df.iloc[:, 26]
 df["p_value"] = df.iloc[:, 27]
@@ -63,13 +65,13 @@ df["OR"] = df.iloc[:, 30]
 df["rsid"] = df.apply(lambda row: "" if pd.isna(row.iloc[11]) or row.iloc[11] == "NA" else row.iloc[21], axis=1)
 
 # Replace missing values in the final three columns with "NR"
-df[["risk_AF", "p_value", "OR", "rsid"]] = df[["risk_AF", "p_value", "OR", "rsid"]].fillna("NR")
+df[["risk_AF", "p_value", "OR", "rsid", "pmid"]] = df[["risk_AF", "p_value", "OR", "rsid", "pmid"]].fillna("NR")
 
 # Keep only rows with a valid chromosome
 df = df.dropna(subset=["chromosome"])
 
 # Select relevant columns
-df = df[["chromosome", "position", "position_plus1", "rsid", "phenotype", "risk_AF", "p_value", "OR"]]
+df = df[["chromosome", "position", "position_plus1", "rsid", "phenotype", "risk_AF", "p_value", "OR", "pmid"]]
 
 # Function to filter and save data
 def filter_and_save(df, category, regex, exclusion=None):
@@ -87,5 +89,8 @@ def filter_and_save(df, category, regex, exclusion=None):
 for category, regex in filters.items():
     exclude = cancer_exclusion if category == "cancer" else None
     filter_and_save(df, category, regex, exclude)
+
+df_sorted = df.sort_values(by=["chromosome", "position"], key=lambda x: pd.to_numeric(x, errors="coerce"))
+df_sorted.to_csv(output_files["all"], sep="\t", index=False, header=False)
 
 print("Filtered GWAS files have been saved successfully!")
