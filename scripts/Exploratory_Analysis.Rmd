@@ -1,0 +1,195 @@
+---
+title: "Exploratory Plots to Characterise the Dataset"
+author: "Caitlin M"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: True
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/Volumes/phd")
+
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(VennDiagram)
+library(UpSetR)
+
+```
+
+### This code is an exploration between the relationship between the variants found in the different populations as well as the overlap between various phenotype groups (as defined by the FANTOM consortium).
+####This exploratory analysis will reveal underlying patterns in the data that may not be immediately evident and provide a better understanding of the data.
+
+
+```{r files}
+# Read in population files and give them column names
+AFR <- fread("1KGP_hg38/AFR_variants_sorted.vcf", header = F)
+AMR <- fread("1KGP_hg38/AMR_variants_sorted.vcf", header = F)
+EAS <- fread("1KGP_hg38/EAS_variants_sorted.vcf", header = F)
+EUR <- fread("1KGP_hg38/EUR_variants_sorted.vcf", header = F)
+SAS <- fread("1KGP_hg38/SAS_variants_sorted.vcf", header = F)
+
+# Assign consistent column names
+colnames(AFR) <- colnames(AMR) <- colnames(EAS) <- colnames(EUR) <- colnames(SAS) <- 
+  c("CHR", "start_pos", "end_pos", "strand", "REF", "ALT", "AF") 
+
+# Create unique SNP IDs (e.g., "chr1:12345")
+variant_lists <- list(
+  AFR = paste0("chr", AFR$CHR, ":", AFR$start_pos),
+  AMR = paste0("chr", AMR$CHR, ":", AMR$start_pos),
+  EAS = paste0("chr", EAS$CHR, ":", EAS$start_pos),
+  EUR = paste0("chr", EUR$CHR, ":", EUR$start_pos),
+  SAS = paste0("chr", SAS$CHR, ":", SAS$start_pos)
+)
+
+```
+## Variant per chromosome count
+
+
+```{r chrom_count}
+# read in file with the number of positions in each chromosome
+hg38 <-  read.table("hg38.genome", header = T, sep = "\t")
+
+# Function to process and normalise counts per population
+get_normalised_counts <- function(df, name) {
+  df %>%
+    filter(CHR %in% hg38$CHR) %>%
+    count(CHR, name = "Variant_Count") %>%
+    left_join(hg38, by = "CHR") %>%
+    mutate(Population = name,
+           Variants_per_bp = Variant_Count / size)
+}
+
+# Apply to each population
+afr_norm <- get_normalised_counts(AFR, "AFR")
+amr_norm <- get_normalised_counts(AMR, "AMR")
+eas_norm <- get_normalised_counts(EAS, "EAS")
+eur_norm <- get_normalised_counts(EUR, "EUR")
+sas_norm <- get_normalised_counts(SAS, "SAS")
+
+# Combine all
+all_norm <- bind_rows(afr_norm, amr_norm, eas_norm, eur_norm, sas_norm)
+
+# Clean up chromosome factor levels
+all_norm$CHR <- factor(all_norm$CHR, levels = c(1:22, "X"))
+
+# Histogram of the normalised counts per chromosome for each population
+ggplot(all_norm, aes(x = CHR, y = Variants_per_bp, fill = Population)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Population, scales = "free_y") +
+  ylab("Normalized Variant Density (Variants per base pair)") +
+  xlab("Chromosome") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Histogram of the number of variants per population 
+ggplot(all_norm, aes(x = CHR, y = Variant_Count, fill = Population)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Population, scales = "free_y") +
+  ylab("Number of Variants") +
+  xlab("Chromosome") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r presence-matrix,echo=FALSE}
+## Create Presence Matrix and Summary Table
+
+# All unique SNPs across all populations
+all_snps <- unique(unlist(variant_lists))
+
+# Build binary matrix (presence/absence)
+presence_matrix <- sapply(variant_lists, function(snps) all_snps %in% snps)
+rownames(presence_matrix) <- all_snps
+
+# Count in how many populations each SNP appears
+population_count <- rowSums(presence_matrix)
+
+# Create summary table
+summary_table <- as.data.frame(table(population_count))
+colnames(summary_table) <- c("Num_Populations", "Num_Variants")
+
+# Save summary table
+write.table(summary_table, "snp_overlap_summary.txt", sep = "\t", row.names = FALSE, quote = FALSE)
+```
+
+## Bar Plot of SNP Sharing
+
+```{r bar-plot, fig.width=6, fig.height=4}
+ggplot(summary_table, aes(x = as.factor(Num_Populations), y = Num_Variants)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  xlab("Number of Populations Sharing SNP") +
+  ylab("Number of SNPs") +
+  theme_classic()
+```
+
+## Venn Diagram (AFR, AMR, EAS)
+
+```{r venn-diagram, fig.width=6, fig.height=6}
+library(grid)
+
+venn_obj <- venn.diagram(
+  x = variant_lists[c("AFR", "AMR", "EAS")],
+  category.names = c("AFR", "AMR", "EAS"),
+  filename = NULL,  # don't save to file
+  output = TRUE,
+  imagetype = "png",
+  col = "transparent",
+  fill = c("red", "green", "blue"),
+  alpha = 0.5,
+  cex = 1.5,
+  cat.cex = 1.2
+)
+
+grid.newpage()
+grid.draw(venn_obj)
+```
+
+## UpSet Plot for All Populations
+
+```{r upset-plot, fig.width=7, fig.height=5}
+# Convert binary matrix to data frame for UpSetR
+# Ensure binary (0/1) data frame
+presence_df <- as.data.frame(presence_matrix)
+presence_df <- presence_df %>%
+  mutate(across(everything(), ~ as.integer(.)))
+
+# Make sure column names exist and there are no empty sets
+if (ncol(presence_df) > 0 && nrow(presence_df) > 0) {
+  upset(presence_df, nsets = ncol(presence_df), order.by = "freq")
+} else {
+  print("Error: No data available for UpSet plot.")
+}
+```
+
+
+
+```{r AF, echo=FALSE}
+afr_plot <- ggplot(AFR, aes(AF)) + geom_histogram(fill = "#F8766D") +
+  xlab("Allele Frequency") +
+  theme_classic()
+afr_plot
+
+amr_plot <- ggplot(AMR, aes(AF)) + geom_histogram(fill = "#A3A500") +
+  xlab("Allele Frequency") +
+  theme_classic()
+amr_plot
+
+eas_plot <- ggplot(EAS, aes(AF)) + geom_histogram(fill = "#00BF7D") +
+  xlab("Allele Frequency") +
+  theme_classic()
+eas_plot
+
+eur_plot <- ggplot(EUR, aes(AF)) + geom_histogram(fill = "#00B0F6") +
+  xlab("Allele Frequency") +
+  theme_classic()
+eur_plot
+
+sas_plot <- ggplot(SAS, aes(AF)) + geom_histogram(fill = "#E76BF3") +
+  xlab("Allele Frequency") +
+  theme_classic()
+sas_plot
+```
