@@ -16,7 +16,6 @@ library(tidyverse)
 library(data.table)
 library(VennDiagram)
 library(UpSetR)
-
 ```
 
 ### This code is an exploration between the relationship between the variants found in the different populations as well as the overlap between various phenotype groups (as defined by the FANTOM consortium).
@@ -43,14 +42,63 @@ variant_lists <- list(
   EUR = paste0("chr", EUR$CHR, ":", EUR$start_pos),
   SAS = paste0("chr", SAS$CHR, ":", SAS$start_pos)
 )
+```
+##Number of Variants per Population
+#### These plots look at the the number of variants per population. There is one plot that is the total number of variants in the population and the second plot is the number of unique variants - variants that only appear in one population - for each superpopulation
+
+```{r pop}
+
+# read in files for the total number of variants for each superpopulation
+pop <- read.table("1KGP_hg38/pop_count_hg38.txt", sep = "\t")
+colnames(pop) <- c("Superpopulation", "Total_Lines")
+bootstrapped <- read.table("prelim_exploration/bootstrap_results.txt", sep = "\t", header = T) # bootstrapping results for the total variant count
+pop_boot <- full_join(pop, bootstrapped, by = "Superpopulation")
+# adjusting the lines so they are not in scientific notation
+pop_boot$Adjusted_lines <- pop_boot$Total_Lines / 1e7
+pop_boot$Adjusted_uCI <- pop_boot$Upper_CI / 1e7
+pop_boot$Adjusted_lCI <- pop_boot$Lower_CI / 1e7
+
+
+# read in files for the  number of variants unique to each superpopulation
+unique_pop <- read.table("1KGP_hg38/unique_pop_count_hg38.txt", sep = "\t")
+colnames(unique_pop) <- c("Superpopulation", "Lines")
+unique_bootstrap <- read.table("prelim_exploration/unique_bootstrap_results.txt", sep = "\t", header = T)
+uniq_pop_boot <- full_join(unique_pop, unique_bootstrap, by = "Superpopulation")
+# adjusting the lines so they are not in scientific notation
+uniq_pop_boot$Adjusted_lines <- uniq_pop_boot$Lines / 1e6
+uniq_pop_boot$Adjusted_uCI <- uniq_pop_boot$Upper_CI / 1e6
+uniq_pop_boot$Adjusted_lCI <- uniq_pop_boot$Lower_CI / 1e6
+
+# plotting total variants per population
+pop_plot <- ggplot(pop_boot, aes(Superpopulation, Adjusted_lines, fill = Superpopulation)) + geom_bar(stat="identity") +
+  geom_errorbar(aes(x = Superpopulation, ymin = Adjusted_lCI, ymax = Adjusted_uCI)) +
+  ylab(bquote("Number of Variants "(x10^7))) +
+  xlab("Superpopulation") +
+  theme_classic() +
+  theme(legend.position="none")
+pop_plot
+# Save high-resolution image
+#ggsave("population_variant_count.png", pop_plot, dpi = 300, width = 6, height = 4)
+
+# plotting the number of unique variant per population
+unique_pop_plot <- ggplot(uniq_pop_boot, aes(Superpopulation, Adjusted_lines, fill = Superpopulation)) + geom_bar(stat="identity") +
+  geom_errorbar(aes(x = Superpopulation, ymin = Adjusted_lCI, ymax = Adjusted_uCI)) +
+  ylab(bquote("Number of Unique Variants "(x10^6))) +
+  xlab("Superpopulation") +
+  theme_classic() +
+  theme(legend.position="none")
+unique_pop_plot
+#ggsave("unique_population_variant_count.png", unique_pop_plot, dpi = 300, width = 6, height = 4)
+
 
 ```
-## Variant per chromosome count
 
+## Variant per chromosome count
+#### There are two plots that are looking at the number of variants per chromosome for each of the superpopulations. The first plot looks at the number of variants per chromosome, whereas the second plot looks at the the number of variants in the chromosome adjusted by the size of the chromosome.
 
 ```{r chrom_count}
 # read in file with the number of positions in each chromosome
-hg38 <-  read.table("hg38.genome", header = T, sep = "\t")
+hg38 <-  read.table("hg38.genome", header = T)
 
 # Function to process and normalise counts per population
 get_normalised_counts <- function(df, name) {
@@ -75,20 +123,20 @@ all_norm <- bind_rows(afr_norm, amr_norm, eas_norm, eur_norm, sas_norm)
 # Clean up chromosome factor levels
 all_norm$CHR <- factor(all_norm$CHR, levels = c(1:22, "X"))
 
-# Histogram of the normalised counts per chromosome for each population
-ggplot(all_norm, aes(x = CHR, y = Variants_per_bp, fill = Population)) +
-  geom_bar(stat = "identity") +
-  facet_wrap(~Population, scales = "free_y") +
-  ylab("Normalized Variant Density (Variants per base pair)") +
-  xlab("Chromosome") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
 # Histogram of the number of variants per population 
 ggplot(all_norm, aes(x = CHR, y = Variant_Count, fill = Population)) +
   geom_bar(stat = "identity") +
   facet_wrap(~Population, scales = "free_y") +
   ylab("Number of Variants") +
+  xlab("Chromosome") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Histogram of the normalised counts per chromosome for each population
+ggplot(all_norm, aes(x = CHR, y = Variants_per_bp, fill = Population)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Population, scales = "free_y") +
+  ylab("Normalized Variant Density (Variants per base pair)") +
   xlab("Chromosome") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -113,83 +161,287 @@ summary_table <- as.data.frame(table(population_count))
 colnames(summary_table) <- c("Num_Populations", "Num_Variants")
 
 # Save summary table
-write.table(summary_table, "snp_overlap_summary.txt", sep = "\t", row.names = FALSE, quote = FALSE)
-```
-
-## Bar Plot of SNP Sharing
-
-```{r bar-plot, fig.width=6, fig.height=4}
-ggplot(summary_table, aes(x = as.factor(Num_Populations), y = Num_Variants)) +
-  geom_bar(stat = "identity", fill = "steelblue") +
-  xlab("Number of Populations Sharing SNP") +
-  ylab("Number of SNPs") +
-  theme_classic()
-```
-
-## Venn Diagram (AFR, AMR, EAS)
-
-```{r venn-diagram, fig.width=6, fig.height=6}
-library(grid)
-
-venn_obj <- venn.diagram(
-  x = variant_lists[c("AFR", "AMR", "EAS")],
-  category.names = c("AFR", "AMR", "EAS"),
-  filename = NULL,  # don't save to file
-  output = TRUE,
-  imagetype = "png",
-  col = "transparent",
-  fill = c("red", "green", "blue"),
-  alpha = 0.5,
-  cex = 1.5,
-  cat.cex = 1.2
-)
-
-grid.newpage()
-grid.draw(venn_obj)
+#write.table(summary_table, "snp_overlap_summary.txt", sep = "\t", row.names = FALSE, quote = FALSE)
 ```
 
 ## UpSet Plot for All Populations
+#### This plot shows the relationship between the superpopulations by counting the number of variants that appear in the different ralationship and measuring the overlap between them. From this we can see which populations have the highest degree of relatedness
 
-```{r upset-plot, fig.width=7, fig.height=5}
+```{r upset-plot, fig.width=14, fig.height=10}
 # Convert binary matrix to data frame for UpSetR
 # Ensure binary (0/1) data frame
 presence_df <- as.data.frame(presence_matrix)
 presence_df <- presence_df %>%
   mutate(across(everything(), ~ as.integer(.)))
 
-# Make sure column names exist and there are no empty sets
-if (ncol(presence_df) > 0 && nrow(presence_df) > 0) {
-  upset(presence_df, nsets = ncol(presence_df), order.by = "freq")
-} else {
-  print("Error: No data available for UpSet plot.")
-}
+set_sizes <- colSums(presence_df)
+
+# Sort population names by size (smallest to largest)
+sorted_sets <- names(sort(set_sizes, decreasing = T))
+
+set_colors <- c(
+  AFR = "#F8766D",
+  AMR = "#A3A500",
+  EAS = "#00BF7D",
+  EUR = "#00B0F6",
+  SAS = "#E76BF3"
+)
+
+UpSetR::upset(
+  presence_df,
+  nsets = length(sorted_sets),
+  sets = sorted_sets,
+  order.by = "freq",
+  sets.bar.color = set_colors[sorted_sets],
+  main.bar.color = "#333333",          # Keep main bars neutral
+  matrix.color = "black",              # Matrix dots remain black
+  matrix.dot.alpha = 0.9,
+  set_size.show = F,
+  text.scale = c(1.7, 1.5, 1.2, 0, 1.3, 1.3),
+  number.angles = 30,
+  keep.order = TRUE
+)
+
 ```
 
+## Venn Diagrams of the Overlap with the European superpopulation
+#### These venn diagrams look at the overlap between the European superpopulation and the other 4. 
+#### We are looking at the European overlaps due to the extreme European bias in genome-wide association studies.
 
+```{r venn-diagram, fig.width=6, fig.height=6}
+library(grid)
+# Create a function that generates a venn diagram between two superpopulations and asks for the colour to plot them with
+plot_venn <- function(pop1, pop2, col1, col2){
+  venn_obj <- venn.diagram(
+    x = variant_lists[c(pop1, pop2)],
+    category.names = c(pop1, pop2),  # pop1 appears on the left
+    filename = NULL,
+    output = TRUE,
+    imagetype = "png",
+    col = "transparent",
+    fill = c(col1, col2),
+    alpha = 0.5,
+    cex = 1.2,
+    cat.cex = 1.2,
+    print.mode = c("raw", "percent"),
+    percent = TRUE
+  )
+  
+  grid.newpage()
+  grid.draw(venn_obj)
+}
+
+```
+###Venn Diagram of EUR and AFR
+```{r ven_eur_afr, fig.width=5, fig.height=5}
+plot_venn("EUR", "AFR", "#00B0F6", "#F8766D")
+```
+###Venn Diagram of EUR and AMR
+```{r ven_eur_amr, fig.width=5, fig.height=5}
+grid.newpage()
+grid.draw(plot_venn("EUR", "AMR", "#00B0F6", "#A3A500"))
+```
+###Venn Diagram of EUR and EAS
+```{r ven_eur_eas, fig.width=5, fig.height=5}
+grid.newpage()
+grid.draw(plot_venn("EUR", "EAS", "#00B0F6", "#00BF7D"))
+```
+###Venn Diagram of EUR and SAS
+```{r ven_eur_sas, fig.width=5, fig.height=5}
+grid.newpage()
+grid.draw(plot_venn("EUR", "SAS", "#00B0F6", "#E76BF3"))
+```
+### Bar Plot of the number of populations that a variant is shared between
+```{r snp-sharing, fig.width=6, fig.height=4}
+ggplot(summary_table, aes(x = as.factor(Num_Populations), y = Num_Variants)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  xlab("Number of Populations Sharing Variant") +
+  ylab("Number of Variantss") +
+  theme_classic()
+```
+
+## Allele Frequency
+###Histogram of the allele frequencies across different populations
 
 ```{r AF, echo=FALSE}
-afr_plot <- ggplot(AFR, aes(AF)) + geom_histogram(fill = "#F8766D") +
+pops <- c('AFR', 'AMR', 'EAS', 'EUR', 'SAS')
+af_list <- list()
+af1 <- data.frame(Population = character(), AF_1_count = integer(), stringsAsFactors = FALSE)
+
+for (pop in pops){
+  af_data <- get(pop) %>% count(AF) %>% as.data.frame()
+  assign(paste0("af_", pop), af_data)
+  
+  #af_list[[pop]] <- af_data
+  af1_count <- af_data[af_data$AF == 1.00, "n"]
+  af1 <- rbind(af1, data.frame(Population = pop, AF_1_count = af1_count))
+}
+
+
+afr_plot <- ggplot(af_AFR, aes(AF, n)) + geom_bar(stat = "identity", fill = "#F8766D") +
   xlab("Allele Frequency") +
   theme_classic()
 afr_plot
 
-amr_plot <- ggplot(AMR, aes(AF)) + geom_histogram(fill = "#A3A500") +
+amr_plot <- ggplot(af_AMR, aes(AF, n)) + geom_bar(stat = "identity", fill = "#A3A500") +
   xlab("Allele Frequency") +
   theme_classic()
 amr_plot
 
-eas_plot <- ggplot(EAS, aes(AF)) + geom_histogram(fill = "#00BF7D") +
+eas_plot <- ggplot(af_EAS, aes(AF, n)) + geom_bar(stat = "identity", fill = "#00BF7D") +
   xlab("Allele Frequency") +
   theme_classic()
 eas_plot
 
-eur_plot <- ggplot(EUR, aes(AF)) + geom_histogram(fill = "#00B0F6") +
+eur_plot <- ggplot(af_EUR, aes(AF, n)) + geom_bar(stat = "identity", fill = "#00B0F6") +
   xlab("Allele Frequency") +
   theme_classic()
 eur_plot
 
-sas_plot <- ggplot(SAS, aes(AF)) + geom_histogram(fill = "#E76BF3") +
+sas_plot <- ggplot(af_SAS, aes(AF, n)) + geom_bar(stat = "identity", fill = "#E76BF3") +
   xlab("Allele Frequency") +
   theme_classic()
 sas_plot
+```
+
+### Violin plots of the different allele frequencies within each chromosome
+
+```{r af_chr}
+library(ggridges)
+
+ggplot(EUR, aes(y = CHR, x = AF, fill = CHR)) +
+  geom_density_ridges(scale = 2, alpha = 0.8, color = "white") +
+  labs(title = "Allele Frequency Distribution by Chromosome (EUR)",
+       x = "Allele Frequency", y = "Chromosome") +
+  theme_ridges() +
+  theme(legend.position = "none")
+
+# AFR 
+ggplot(AFR, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#F8766D") +
+  labs(title = "Allele Frequency Distribution per Chromosome (AFR)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# AMR 
+ggplot(AMR, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#A3A500") +
+  labs(title = "Allele Frequency Distribution per Chromosome (AMR)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# EAS 
+ggplot(EAS, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#00BF7D") +
+  labs(title = "Allele Frequency Distribution per Chromosome (EAS)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(EUR, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#00B0F6") +
+  labs(title = "Allele Frequency Distribution per Chromosome (EUR)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# SAS 
+ggplot(SAS, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#E76BF3") +
+  labs(title = "Allele Frequency Distribution per Chromosome (SAS)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+## Fixed Alleles
+
+```{r fixed_alleles}
+# a for loop that gets the distribution of the allele frequencies for each population
+pops <- c('AFR', 'AMR', 'EAS', 'EUR', 'SAS')
+af_list <- list()
+af1 <- data.frame(Population = character(), AF_1_count = integer(), stringsAsFactors = FALSE)
+
+for (pop in pops){
+  af_data <- get(pop) %>% count(AF) %>% as.data.frame()
+  assign(paste0("af_", pop), af_data)
+  
+  #af_list[[pop]] <- af_data
+  af1_count <- af_data[af_data$AF == 1.00, "n"]
+  af1 <- rbind(af1, data.frame(Population = pop, AF_1_count = af1_count))
+}
+
+ggplot(af1, aes(Population, AF_1_count,fill = Population)) + geom_bar(stat = "identity") + 
+  theme_classic() +
+  theme(legend.position = "none") +
+  xlab("Superpopulation") +
+  ylab("Number of Variants")
+  
+  
+```
+
+## Population Phenotypes
+#### These plots are generated from the bedtools summary of the overlap between superpopulation variants and phenotype groups. The second plot is adjusted for the number of variants in the superpopulation to account for the differences in the number of variants in different populations
+
+```{r phenotype_dist}
+# reading in the bedtools summary file and manipulating the rows so they can be plotted
+lines <- read_lines("gwas_1000_genomes/bedtools_summary.txt")[-1] # reads in the lines of the file, excluding the first line
+bedtools <- tibble(raw = lines) %>%
+  mutate(raw = str_remove(raw, " lines$")) %>%  # Remove " lines" from the end
+  separate(raw, into = c("Superpopulation", "Phenotype"), sep = "_vs_", extra = "merge") %>%  # Split at "_vs_"
+  separate(Phenotype, into = c("Phenotype", "Line_Count"), sep = ": ") %>%  # Split at ": "
+  mutate(Phenotype = str_remove(Phenotype, "_gwas$"),  # Remove "_gwas"
+         Line_Count = as.integer(Line_Count))  # Convert count to integer
+
+bed_boot <- read.table("prelim_exploration/bootstrap_superpop_phenotype_results.txt", sep = "\t", header = T)
+bedtools_boot <- full_join(bedtools, bed_boot, by = c("Superpopulation", "Phenotype"))
+bedtools_boot <- subset(bedtools_boot, select = -c(Line_Count))
+# creating a new dataframe that merges the dataframes with the number of variants and the phenotypes so the proportion can be calculated
+proportion_df <- full_join(pop, bedtools_boot, by ="Superpopulation")
+proportion_df <- proportion_df[order(proportion_df$Superpopulation),]
+proportion_df$Proportion <- proportion_df$Count / proportion_df$Total_Lines *100
+proportion_df$Adjusted_uCI <- proportion_df$Upper_CI / proportion_df$Total_Lines *100
+proportion_df$Adjusted_lCI <- proportion_df$Lower_CI / proportion_df$Total_Lines *100
+
+phenotype_order <-  c('Cancer', 'Neurological', 'Immunological') # changing the order of the phenotypes so it is more aesthetic
+# plotting the raw numbers of the overlap between the variants and the phenotype groups
+bedtools_plot <- ggplot(bedtools_boot, aes(factor(Phenotype, level = phenotype_order), Count, fill = Superpopulation)) + 
+  geom_bar(stat = "identity",position=position_dodge(), color="white",) + 
+  geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI), 
+                position = position_dodge(width = 0.9), 
+                width = 0.25, 
+                color = "black") +
+  xlab("Phenotype") +
+  ylab("Number of Variants") +
+  theme_classic()
+bedtools_plot
+#ggsave("phenotype_variant_count.png", bedtools_plot, dpi = 300, width = 7, height = 5)
+
+# plotting the proportion of the phenotype overlap compared to the total number of variants for the population
+prop_plot <- ggplot(proportion_df, aes(factor(Phenotype, level = phenotype_order), Proportion, fill = Superpopulation)) + 
+  geom_bar(stat = "identity",position=position_dodge(), color="white",) + 
+  geom_errorbar(aes(ymin = Adjusted_lCI, ymax = Adjusted_uCI), 
+                position = position_dodge(width = 0.9), 
+                width = 0.25, 
+                color = "black") +
+  xlab("Phenotype") +
+  ylab("Propotion of the total variants (%)") +
+  theme_classic()
+prop_plot
+#ggsave("phenotype_variant_proportion.png", prop_plot, dpi = 300, width = 7, height = 5)
+
+
+
+```
+
+
+
+
+```{r ancestry}
+
+ancestry <- read.table("NHGRI_EBI_GWAS/gwas_catalog-ancestry_r2025-02-18.tsv", header = T, sep = "\t")
+
+
 ```
