@@ -4,7 +4,7 @@ import subprocess
 
 # --- 1. Process and simplify the GENCODE GTF file ---
 gencode_input_path = "/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/gencode.v47.annotation.gtf.gz"
-gencode_output_path = "/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/preliminary/gencode_hg38_v47.gtf.gz"
+gencode_output_path = "/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/preliminary_exploration/gencode/gencode_hg38_v47.gtf.gz"
 
 with gzip.open(gencode_input_path, 'rt') as infile, gzip.open(gencode_output_path, 'wb') as outfile:
     for line in infile:
@@ -30,7 +30,7 @@ populations = ['EAS', 'AMR', 'AFR', 'EUR', 'SAS']
 # Input/output directories
 gwas_base_path = "/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd"
 bed_dir = "gwas_1000_genomes"
-output_dir = os.path.join(gwas_base_path, "preliminary")
+output_dir = os.path.join(gwas_base_path, "preliminary_exploration/gencode")
 
 # Column names in GWAS files (no headers)
 variant_colnames = [
