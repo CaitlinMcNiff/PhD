@@ -16,6 +16,7 @@ library(tidyverse)
 library(data.table)
 library(VennDiagram)
 library(UpSetR)
+library(grid)
 ```
 
 ### This code is an exploration between the relationship between the variants found in the different populations as well as the overlap between various phenotype groups (as defined by the FANTOM consortium).
@@ -51,7 +52,7 @@ variant_lists <- list(
 # read in files for the total number of variants for each superpopulation
 pop <- read.table("1KGP_hg38/pop_count_hg38.txt", sep = "\t")
 colnames(pop) <- c("Superpopulation", "Total_Lines")
-bootstrapped <- read.table("prelim_exploration/bootstrap_results.txt", sep = "\t", header = T) # bootstrapping results for the total variant count
+bootstrapped <- read.table("preliminary_exploration/bootstrap_results.txt", sep = "\t", header = T) # bootstrapping results for the total variant count
 pop_boot <- full_join(pop, bootstrapped, by = "Superpopulation")
 # adjusting the lines so they are not in scientific notation
 pop_boot$Adjusted_lines <- pop_boot$Total_Lines / 1e7
@@ -62,7 +63,7 @@ pop_boot$Adjusted_lCI <- pop_boot$Lower_CI / 1e7
 # read in files for the  number of variants unique to each superpopulation
 unique_pop <- read.table("1KGP_hg38/unique_pop_count_hg38.txt", sep = "\t")
 colnames(unique_pop) <- c("Superpopulation", "Lines")
-unique_bootstrap <- read.table("prelim_exploration/unique_bootstrap_results.txt", sep = "\t", header = T)
+unique_bootstrap <- read.table("preliminary_exploration/unique_bootstrap_results.txt", sep = "\t", header = T)
 uniq_pop_boot <- full_join(unique_pop, unique_bootstrap, by = "Superpopulation")
 # adjusting the lines so they are not in scientific notation
 uniq_pop_boot$Adjusted_lines <- uniq_pop_boot$Lines / 1e6
@@ -130,17 +131,17 @@ ggplot(all_norm, aes(x = CHR, y = Variant_Count, fill = Population)) +
   ylab("Number of Variants") +
   xlab("Chromosome") +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), , legend.position = "none")
 
 # Histogram of the normalised counts per chromosome for each population
-ggplot(all_norm, aes(x = CHR, y = Variants_per_bp, fill = Population)) +
+chr_plt <- ggplot(all_norm, aes(x = CHR, y = Variants_per_bp, fill = Population)) +
   geom_bar(stat = "identity") +
   facet_wrap(~Population, scales = "free_y") +
   ylab("Normalized Variant Density (Variants per base pair)") +
   xlab("Chromosome") +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+#ggsave("figures/normalised_variants_per_chromosome.png", chr_plt, width = 12, height = 7)
 ```
 
 ```{r presence-matrix,echo=FALSE}
@@ -187,21 +188,21 @@ set_colors <- c(
   SAS = "#E76BF3"
 )
 
+#png("figures/upset_plot.png", width = 1200, height = 800, res = 150)
 UpSetR::upset(
   presence_df,
   nsets = length(sorted_sets),
   sets = sorted_sets,
   order.by = "freq",
   sets.bar.color = set_colors[sorted_sets],
-  main.bar.color = "#333333",          # Keep main bars neutral
+  main.bar.color = "#333333",         
   matrix.color = "black",              # Matrix dots remain black
-  matrix.dot.alpha = 0.9,
+  matrix.dot.alpha = 1,
   set_size.show = F,
-  text.scale = c(1.7, 1.5, 1.2, 0, 1.3, 1.3),
-  number.angles = 30,
+  text.scale = c(1.7, 1.6, 1.4, 0, 1.7, 0),
   keep.order = TRUE
 )
-
+#dev.off()
 ```
 
 ## Venn Diagrams of the Overlap with the European superpopulation
@@ -209,7 +210,6 @@ UpSetR::upset(
 #### We are looking at the European overlaps due to the extreme European bias in genome-wide association studies.
 
 ```{r venn-diagram, fig.width=6, fig.height=6}
-library(grid)
 # Create a function that generates a venn diagram between two superpopulations and asks for the colour to plot them with
 plot_venn <- function(pop1, pop2, col1, col2){
   venn_obj <- venn.diagram(
@@ -243,8 +243,10 @@ grid.draw(plot_venn("EUR", "AMR", "#00B0F6", "#A3A500"))
 ```
 ###Venn Diagram of EUR and EAS
 ```{r ven_eur_eas, fig.width=5, fig.height=5}
+#png("figures/EUR_EAS_venn_diagram.png", width = 800, height = 800, res = 150)
 grid.newpage()
 grid.draw(plot_venn("EUR", "EAS", "#00B0F6", "#00BF7D"))
+#dev.off()
 ```
 ###Venn Diagram of EUR and SAS
 ```{r ven_eur_sas, fig.width=5, fig.height=5}
@@ -253,11 +255,12 @@ grid.draw(plot_venn("EUR", "SAS", "#00B0F6", "#E76BF3"))
 ```
 ### Bar Plot of the number of populations that a variant is shared between
 ```{r snp-sharing, fig.width=6, fig.height=4}
-ggplot(summary_table, aes(x = as.factor(Num_Populations), y = Num_Variants)) +
+ggplot(summary_table, aes(x = as.factor(Num_Populations), y = (Num_Variants/1e6))) +
   geom_bar(stat = "identity", fill = "steelblue") +
   xlab("Number of Populations Sharing Variant") +
-  ylab("Number of Variantss") +
+  ylab(bquote("Number of Variants "(x10^7))) +
   theme_classic()
+ggsave("figures/shared_variants.png", dpi = 300, width = 6, height = 4)
 ```
 
 ## Allele Frequency
@@ -306,55 +309,38 @@ sas_plot
 
 ### Violin plots of the different allele frequencies within each chromosome
 
-```{r af_chr}
-library(ggridges)
+```{r cumulative_af}
+AFR_af <- AFR  %>% select(AF) %>% mutate(Superpopulation = "AFR") 
+AMR_af <- AMR  %>% select(AF)%>% mutate(Superpopulation = "AMR")
+EAS_af <- EAS  %>% select(AF)%>% mutate(Superpopulation = "EAS")
+EUR_af <- EUR  %>% select(AF) %>% mutate(Superpopulation = "EUR")
+SAS_af <- SAS  %>% select(AF)%>% mutate(Superpopulation = "SAS")
 
-ggplot(EUR, aes(y = CHR, x = AF, fill = CHR)) +
-  geom_density_ridges(scale = 2, alpha = 0.8, color = "white") +
-  labs(title = "Allele Frequency Distribution by Chromosome (EUR)",
-       x = "Allele Frequency", y = "Chromosome") +
-  theme_ridges() +
-  theme(legend.position = "none")
+# Combine into one long dataframe
+all_af <- bind_rows(AFR_af, AMR_af, EAS_af, EUR_af, SAS_af)
 
-# AFR 
-ggplot(AFR, aes(x = CHR, y = AF)) +
-  geom_violin(trim = FALSE, alpha = 0.7, fill = "#F8766D") +
-  labs(title = "Allele Frequency Distribution per Chromosome (AFR)",
-       x = "Chromosome", y = "Allele Frequency") +
-  theme_minimal() +
-  theme(legend.position = "none")
 
-# AMR 
-ggplot(AMR, aes(x = CHR, y = AF)) +
-  geom_violin(trim = FALSE, alpha = 0.7, fill = "#A3A500") +
-  labs(title = "Allele Frequency Distribution per Chromosome (AMR)",
-       x = "Chromosome", y = "Allele Frequency") +
-  theme_minimal() +
-  theme(legend.position = "none")
+ggplot(all_af, aes(x = AF, color = Superpopulation)) +
+  stat_ecdf(size = 1) +
+  theme_classic() +
+  labs(title = "Cumulative Distribution of Allele Frequencies by Superpopulation",
+       x = "Allele Frequency",
+       y = "Cumulative Proportion")
 
-# EAS 
-ggplot(EAS, aes(x = CHR, y = AF)) +
-  geom_violin(trim = FALSE, alpha = 0.7, fill = "#00BF7D") +
-  labs(title = "Allele Frequency Distribution per Chromosome (EAS)",
-       x = "Chromosome", y = "Allele Frequency") +
-  theme_minimal() +
-  theme(legend.position = "none")
+cdf_df <- all_af %>%
+  filter(!is.na(AF)) %>%
+  group_by(Superpopulation) %>%
+  arrange(AF, .by_group = TRUE) %>%
+  mutate(CDF = seq_along(AF) / n())
 
-ggplot(EUR, aes(x = CHR, y = AF)) +
-  geom_violin(trim = FALSE, alpha = 0.7, fill = "#00B0F6") +
-  labs(title = "Allele Frequency Distribution per Chromosome (EUR)",
-       x = "Chromosome", y = "Allele Frequency") +
-  theme_minimal() +
-  theme(legend.position = "none")
-
-# SAS 
-ggplot(SAS, aes(x = CHR, y = AF)) +
-  geom_violin(trim = FALSE, alpha = 0.7, fill = "#E76BF3") +
-  labs(title = "Allele Frequency Distribution per Chromosome (SAS)",
-       x = "Chromosome", y = "Allele Frequency") +
-  theme_minimal() +
-  theme(legend.position = "none")
-
+ggplot(cdf_df, aes(x = AF, y = CDF, color = Superpopulation)) +
+  geom_smooth(se = FALSE, method = "loess", span = 0.2, size = 1) +
+  theme_classic() +
+  labs(
+    title = "Smoothed Cumulative Distribution of Allele Frequencies",
+    x = "Allele Frequency",
+    y = "Cumulative Proportion"
+  )
 ```
 ## Fixed Alleles
 
@@ -373,11 +359,12 @@ for (pop in pops){
   af1 <- rbind(af1, data.frame(Population = pop, AF_1_count = af1_count))
 }
 
-ggplot(af1, aes(Population, AF_1_count,fill = Population)) + geom_bar(stat = "identity") + 
+ggplot(af1, aes(Population, (AF_1_count/1e5), fill = Population)) + geom_bar(stat = "identity") + 
   theme_classic() +
   theme(legend.position = "none") +
   xlab("Superpopulation") +
-  ylab("Number of Variants")
+  ylab(bquote("Number of Variants "(x10^5)))
+ggsave("figures/fixed_variants.png", dpi=300, width = 6, height = 4)
   
   
 ```
@@ -395,7 +382,7 @@ bedtools <- tibble(raw = lines) %>%
   mutate(Phenotype = str_remove(Phenotype, "_gwas$"),  # Remove "_gwas"
          Line_Count = as.integer(Line_Count))  # Convert count to integer
 
-bed_boot <- read.table("prelim_exploration/bootstrap_superpop_phenotype_results.txt", sep = "\t", header = T)
+bed_boot <- read.table("preliminary_exploration/bootstrap_superpop_phenotype_results.txt", sep = "\t", header = T)
 bedtools_boot <- full_join(bedtools, bed_boot, by = c("Superpopulation", "Phenotype"))
 bedtools_boot <- subset(bedtools_boot, select = -c(Line_Count))
 # creating a new dataframe that merges the dataframes with the number of variants and the phenotypes so the proportion can be calculated
@@ -432,16 +419,289 @@ prop_plot <- ggplot(proportion_df, aes(factor(Phenotype, level = phenotype_order
 prop_plot
 #ggsave("phenotype_variant_proportion.png", prop_plot, dpi = 300, width = 7, height = 5)
 
+```
+
+```{r pheno_chr}
+
+# read in file with the number of positions in each chromosome
+hg38 <-  read.table("hg38.genome", header = T)
+
+# Function to process and normalise counts per population
+normalise_counts <- function(df, name) {
+  df %>% mutate(CHR = as.character(CHR)) %>% 
+    filter(CHR %in% hg38$CHR) %>%
+    count(CHR, name = "Variant_Count") %>%
+    left_join(hg38, by = "CHR") %>%
+    mutate(Population = name,
+           Variants_per_bp = Variant_Count / size)
+}
+
+AFR_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/AFR_all_gwas.bed", header = F, sep = "\t")
+AMR_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/AMR_all_gwas.bed", header = F, sep = "\t")
+EAS_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/EAS_all_gwas.bed", header = F, sep = "\t")
+EUR_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/EUR_all_gwas.bed", header = F, sep = "\t")
+SAS_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/SAS_all_gwas.bed", header = F, sep = "\t")
+
+colnames(AFR_pheno) <- colnames(AMR_pheno) <- colnames(EAS_pheno) <- colnames(EUR_pheno) <- colnames(SAS_pheno) <- c("CHR", "start_pos", "end_pos", "RSID", "Phenotype","risk_AF", "p_value", "OR", "PMID", "v_CHR","v_start_pos", "v_end_pos", "v_rsid", "REF", "ALT", "AF", "overlap")
+
+# Apply to each population
+afr_norm <- normalise_counts(AFR_pheno, "AFR")
+amr_norm <- normalise_counts(AMR_pheno, "AMR")
+eas_norm <- normalise_counts(EAS_pheno, "EAS")
+eur_norm <- normalise_counts(EUR_pheno, "EUR")
+sas_norm <- normalise_counts(SAS_pheno, "SAS")
+
+# Combine all
+all_norm <- bind_rows(afr_norm, amr_norm, eas_norm, eur_norm, sas_norm)
+
+# Clean up chromosome factor levels
+all_norm$CHR <- factor(all_norm$CHR, levels = c(1:22, "X"))
+
+# Histogram of the number of variants per population 
+ggplot(all_norm, aes(x = CHR, y = Variant_Count, fill = Population)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Population, scales = "free_y") +
+  ylab("Number of Variants") +
+  xlab("Chromosome") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Histogram of the normalised counts per chromosome for each population
+ggplot(all_norm, aes(x = CHR, y = (Variants_per_bp*1e4), fill = Population)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Population, scales = "free_y") +
+  ylab(bquote("Normalized Variant Density" (x10^-4))) +
+  xlab("Chromosome") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+ggsave("figures/normalised_variants_phenotypes_per_chr.png", width = 12, height = 7)
 
 
 ```
 
+```{r effect_size}
+AFR_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/AFR_all_gwas.bed", header = F, sep = "\t")
+AMR_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/AMR_all_gwas.bed", header = F, sep = "\t")
+EAS_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/EAS_all_gwas.bed", header = F, sep = "\t")
+EUR_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/EUR_all_gwas.bed", header = F, sep = "\t")
+SAS_pheno <- read.table("/Volumes/phd/gwas_1000_genomes/SAS_all_gwas.bed", header = F, sep = "\t")
 
+colnames(AFR_pheno) <- colnames(AMR_pheno) <- colnames(EAS_pheno) <- colnames(EUR_pheno) <- colnames(SAS_pheno) <- c("CHR", "start_pos", "end_pos", "RSID", "Phenotype","risk_AF", "p_value", "OR", "PMID", "v_CHR","v_start_pos", "v_end_pos", "v_rsid", "REF", "ALT", "AF", "overlap")
+
+AFR_pheno$CHR <- factor(AFR_pheno$CHR, levels = c(1:22, "X"))
+#, fill = "#F8766D
+ggplot(AFR_pheno, aes(x = CHR, mean(as.numeric(OR), na.rm=T))) + 
+  geom_bar(stat = "identity", fill = "#F8766D") +
+  labs(x = "Chromosome", y = "Average Effect Size") +
+  theme_classic() 
+
+# AMR 
+ggplot(AMR, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#A3A500") +
+  labs(title = "Allele Frequency Distribution per Chromosome (AMR)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# EAS 
+ggplot(EAS, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#00BF7D") +
+  labs(title = "Allele Frequency Distribution per Chromosome (EAS)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(EUR, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#00B0F6") +
+  labs(title = "Allele Frequency Distribution per Chromosome (EUR)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# SAS 
+ggplot(SAS, aes(x = CHR, y = AF)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "#E76BF3") +
+  labs(title = "Allele Frequency Distribution per Chromosome (SAS)",
+       x = "Chromosome", y = "Allele Frequency") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
 
 
 ```{r ancestry}
+library(patchwork)
 
-ancestry <- read.table("NHGRI_EBI_GWAS/gwas_catalog-ancestry_r2025-02-18.tsv", header = T, sep = "\t")
+study_nos <- read.table("NHGRI_EBI_GWAS/NHGRI-EBI_ancestry.txt", header = T, sep = "\t")
+colnames(study_nos) <- c("Superpopulation", "Number_of_Studies")
+study_overlap <- read.table("preliminary_exploration/gwas_ancestry_phenotype_overlap.tsv", header = T, sep = "\t")
+ancestry_info <- merge(study_nos, study_overlap, by = "Superpopulation")
+
+study_plot <- ggplot(ancestry_info, aes(x = Superpopulation, y = Number_of_Studies, fill = Superpopulation)) +
+  geom_col() +
+  ylab("Study Count") +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title.x=element_blank())
+study_plot
+
+ancestry_info <- ancestry_info %>%
+  mutate(Percent_Not_Studied = Variants_Not_Studied / Total_Variants * 100) %>% mutate(Adjusted_Percent = Percent_Not_Studied / Number_of_Studies)
+eur_study_count <- ancestry_info$Number_of_Studies[ancestry_info$Superpopulation == "EUR"]
+ancestry_info <- ancestry_info %>%
+  mutate(Normalised_Percent = Percent_Not_Studied * (eur_study_count / Number_of_Studies))
+
+
+ancestry_plot <- ggplot(ancestry_info, aes(x = Superpopulation, y = Adjusted_Percent, fill = Superpopulation)) +
+  geom_col() +
+  ylab("Not Studied / Study Count (%)") +
+  theme_classic() +
+  theme(legend.position = "none", axis.title.x=element_blank())
+ancestry_plot
+
+combined_plot <- (study_plot + ancestry_plot) + 
+  plot_layout(guides = "collect")
+print(combined_plot)
+ggsave("figures/variant_ancestry_summary.png", combined_plot, width = 12, height = 5, dpi = 320)
+```
+
+
+```{r fixed_ancestry}
+
+fixed_af_ancestry <- read.table("preliminary_exploration/gwas_unstudied_fixed_AF.txt", sep = "\t", header = T)
+
+ggplot(fixed_af_ancestry, aes(x = Superpopulation, y = AF_1_Not_Studied_Count, fill = Superpopulation)) +
+  geom_col() +
+  labs(title = "Number of Fixed Variants that were in population that were not studied",
+    y = "Number of Fixed Variants") +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x=element_blank())
 
 
 ```
+
+```{r gencode}
+library(scales)
+
+
+#regions <- read.table("preliminary_exploration/gencode/gencode_population_region_summary.txt", header = T, sep = "\t")
+#regions <- subset(regions, select = -c(gene))
+#gene_breakdown <- read.table("preliminary_exploration/gencode/gencode_population_gene_summary.txt", header = T, sep = "\t")
+colnames(regions)[1] <- colnames(gene_breakdown)[1] <- "Superpopulation"
+
+regions_long <- regions %>%
+  pivot_longer(cols = -Superpopulation, names_to = "Feature", values_to = "Count") %>% mutate(Count_scaled = Count / 1e6)
+feature_order <- c("transcript", "exon", "CDS", "UTR", "start_codon", "stop_codon")
+# Set the order of the variables
+regions_long$Feature <- factor(regions_long$Feature, levels = feature_order)
+
+# Region Plots
+ggplot(regions_long, aes(x = Feature, y = Count_scaled, fill = Superpopulation)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme_classic() +
+  xlab("Feature Type") +
+  ylab(bquote("Count "(x10^6))) +
+  theme(legend.position = "none")
+#ggsave("figures/gene_features_gencode.png", dpi=300, width = 6, height = 4)
+
+# regions log transformed 
+ggplot(regions_long, aes(x = Feature, y = Count, fill = Superpopulation)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  scale_y_continuous(trans = "log10",
+                     breaks = trans_breaks("log10", function(x) 10^x),
+                     labels = trans_format("log10", math_format(10^.x))) +
+  theme_classic() +
+  xlab("Feature Type") +
+  ylab(expression("Count (Log" [10] * ")")) + 
+  theme(legend.position = "none")
+
+
+#remove pseudogenes
+#genes <- gene_breakdown[,!grepl("_pseudogene$",names(gene_breakdown))]
+genes_long <- gene_breakdown %>%
+  pivot_longer(cols = -Superpopulation, names_to = "Gene_Type", values_to = "Count")  %>%
+  mutate(Count_scaled = Count / 1e5)
+
+biotype_map <- list(
+  "Protein-coding" = c("protein_coding"),
+  "lncRNA" = c("lncRNA", "TEC"),
+  "Pseudogene" = c("processed_pseudogene", "unprocessed_pseudogene", "transcribed_unprocessed_pseudogene",
+                   "transcribed_processed_pseudogene", "unitary_pseudogene", "transcribed_unitary_pseudogene"),
+  "Immune (IG/TR)" = c("IG_C_gene", "IG_V_gene", "IG_J_gene", "IG_D_gene",
+                       "TR_C_gene", "TR_V_gene", "TR_J_gene", "TR_D_gene", 
+                       "IG_C_pseudogene", "IG_V_pseudogene"),
+  "ncRNA" = c("miRNA", "snRNA", "snoRNA", "misc_RNA", "rRNA", "scaRNA", "vault_RNA", "rRNA_pseudogene")
+)
+
+biotype_lookup <- unlist(lapply(names(biotype_map), function(group) {
+  setNames(rep(group, length(biotype_map[[group]])), biotype_map[[group]])
+}))
+
+# Assign groups
+gene_counts <- genes_long %>%
+  mutate(Biotype_Group = biotype_lookup[Gene_Type]) %>%
+  filter(!is.na(Biotype_Group))  # remove unmapped types if needed
+
+grouped_counts <- gene_counts %>%
+  group_by(Superpopulation, Biotype_Group) %>%
+  summarise(Total = sum(Count), .groups = "drop")
+
+biotype_order <- grouped_counts %>%
+  group_by(Biotype_Group) %>%
+  summarise(Sum = sum(Total)) %>%
+  arrange(desc(Sum)) %>%
+  pull(Biotype_Group)
+
+# Set factor levels to order the x-axis
+grouped_counts$Biotype_Group <- factor(grouped_counts$Biotype_Group, levels = biotype_order)
+
+ggplot(grouped_counts, aes(x = Biotype_Group, y = Total, fill = Superpopulation)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_y_log10(
+    labels = trans_format("log10", math_format(10^.x))
+  ) +
+  theme_classic() +
+  labs(
+    title = "Grouped Gene Biotypes by Superpopulation",
+    x = "Biotype Group",
+    y = "Count (log10)"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    text = element_text(size = 14)
+  )
+# Order gene types by descending total count and select top 10§
+top_genes <- genes_long %>%
+  group_by(Gene_Type) %>%
+  summarise(total_count = sum(Count)) %>%
+  arrange(desc(total_count)) %>%
+  slice_head(n = 10)
+
+df_top10 <- genes_long %>%
+  filter(Gene_Type %in% top_genes$Gene_Type) %>%
+  mutate(Gene_Type = factor(Gene_Type, levels = top_genes$Gene_Type))
+
+ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Superpopulation)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_y_continuous(trans = "log10",
+                     breaks = trans_breaks("log10", function(x) 10^x),
+                     labels = trans_format("log10", math_format(10^.x))) +
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        text = element_text(size = 14)) +
+  labs(y = "Count (log10)",
+    x = "Gene Type")
+#ggsave("figures/gene_types_gencode.png", dpi=300, width = 6, height = 4)
+
+ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Superpopulation)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme_classic() +
+  xlab("Gene Type") +
+  ylab(bquote("Count "(x10^6))) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
