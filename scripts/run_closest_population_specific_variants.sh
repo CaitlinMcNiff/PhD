@@ -51,3 +51,5 @@ rm $EUR_SORTED $EAS_SORTED $EUR_SPECIFIC $EAS_SPECIFIC temp_closest.txt
 
 echo "Population-specific closest variant analysis complete. Output: $CLOSEST_OUTPUT"
 
+#Run bedtools intersect to find the genes that overlap with all cancer variants
+bedtools intersect -a /exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/NHGRI_EBI_GWAS/cancer_gwas.bed -b gencode_hg38_v47.gtf > all_cancer_genes.bed
