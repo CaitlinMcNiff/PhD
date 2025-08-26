@@ -17,6 +17,8 @@ library(data.table)
 library(VennDiagram)
 library(UpSetR)
 library(grid)
+library(scales)
+
 ```
 
 ### This code is an exploration between the relationship between the variants found in the different populations as well as the overlap between various phenotype groups (as defined by the FANTOM consortium).
@@ -51,9 +53,10 @@ variant_lists <- list(
 
 # read in files for the total number of variants for each superpopulation
 pop <- read.table("1KGP_hg38/pop_count_hg38.txt", sep = "\t")
-colnames(pop) <- c("Superpopulation", "Total_Lines")
+colnames(pop) <- c("Population", "Total_Lines")
 bootstrapped <- read.table("preliminary_exploration/bootstrap_results.txt", sep = "\t", header = T) # bootstrapping results for the total variant count
-pop_boot <- full_join(pop, bootstrapped, by = "Superpopulation")
+colnames(bootstrapped)[1] <- "Population"
+pop_boot <- full_join(pop, bootstrapped, by = "Population")
 # adjusting the lines so they are not in scientific notation
 pop_boot$Adjusted_lines <- pop_boot$Total_Lines / 1e7
 pop_boot$Adjusted_uCI <- pop_boot$Upper_CI / 1e7
@@ -62,9 +65,9 @@ pop_boot$Adjusted_lCI <- pop_boot$Lower_CI / 1e7
 
 # read in files for the  number of variants unique to each superpopulation
 unique_pop <- read.table("1KGP_hg38/unique_pop_count_hg38.txt", sep = "\t")
-colnames(unique_pop) <- c("Superpopulation", "Lines")
+colnames(unique_pop) <- c("Population", "Lines")
 unique_bootstrap <- read.table("preliminary_exploration/unique_bootstrap_results.txt", sep = "\t", header = T)
-uniq_pop_boot <- full_join(unique_pop, unique_bootstrap, by = "Superpopulation")
+uniq_pop_boot <- full_join(unique_pop, unique_bootstrap, by = "Population")
 # adjusting the lines so they are not in scientific notation
 uniq_pop_boot$Adjusted_lines <- uniq_pop_boot$Lines / 1e6
 uniq_pop_boot$Adjusted_uCI <- uniq_pop_boot$Upper_CI / 1e6
@@ -74,18 +77,18 @@ uniq_pop_boot$Adjusted_lCI <- uniq_pop_boot$Lower_CI / 1e6
 pop_plot <- ggplot(pop_boot, aes(Superpopulation, Adjusted_lines, fill = Superpopulation)) + geom_bar(stat="identity") +
   geom_errorbar(aes(x = Superpopulation, ymin = Adjusted_lCI, ymax = Adjusted_uCI)) +
   ylab(bquote("Number of Variants "(x10^7))) +
-  xlab("Superpopulation") +
+  xlab("Population") +
   theme_classic() +
   theme(legend.position="none")
 pop_plot
 # Save high-resolution image
-#ggsave("population_variant_count.png", pop_plot, dpi = 300, width = 6, height = 4)
+ggsave("figures/population_variant_count.png", pop_plot, dpi = 300, width = 6, height = 4)
 
 # plotting the number of unique variant per population
 unique_pop_plot <- ggplot(uniq_pop_boot, aes(Superpopulation, Adjusted_lines, fill = Superpopulation)) + geom_bar(stat="identity") +
   geom_errorbar(aes(x = Superpopulation, ymin = Adjusted_lCI, ymax = Adjusted_uCI)) +
   ylab(bquote("Number of Unique Variants "(x10^6))) +
-  xlab("Superpopulation") +
+  xlab("Population") +
   theme_classic() +
   theme(legend.position="none")
 unique_pop_plot
@@ -310,37 +313,55 @@ sas_plot
 ### Violin plots of the different allele frequencies within each chromosome
 
 ```{r cumulative_af}
-AFR_af <- AFR  %>% select(AF) %>% mutate(Superpopulation = "AFR") 
-AMR_af <- AMR  %>% select(AF)%>% mutate(Superpopulation = "AMR")
-EAS_af <- EAS  %>% select(AF)%>% mutate(Superpopulation = "EAS")
-EUR_af <- EUR  %>% select(AF) %>% mutate(Superpopulation = "EUR")
-SAS_af <- SAS  %>% select(AF)%>% mutate(Superpopulation = "SAS")
+AFR_af <- AFR  %>% select(AF) %>% mutate(Population = "AFR") 
+AMR_af <- AMR  %>% select(AF)%>% mutate(Population = "AMR")
+EAS_af <- EAS  %>% select(AF)%>% mutate(Population = "EAS")
+EUR_af <- EUR  %>% select(AF) %>% mutate(Population = "EUR")
+SAS_af <- SAS  %>% select(AF)%>% mutate(Population = "SAS")
 
 # Combine into one long dataframe
 all_af <- bind_rows(AFR_af, AMR_af, EAS_af, EUR_af, SAS_af)
 
 
-ggplot(all_af, aes(x = AF, color = Superpopulation)) +
+ggplot(all_af, aes(x = AF, color = Population)) +
   stat_ecdf(size = 1) +
   theme_classic() +
   labs(title = "Cumulative Distribution of Allele Frequencies by Superpopulation",
        x = "Allele Frequency",
        y = "Cumulative Proportion")
 
-cdf_df <- all_af %>%
-  filter(!is.na(AF)) %>%
-  group_by(Superpopulation) %>%
-  arrange(AF, .by_group = TRUE) %>%
-  mutate(CDF = seq_along(AF) / n())
+superpopulations <- list(AFR = AFR_af, AMR = AMR_af, EAS = EAS_af, EUR = EUR_af, SAS = SAS_af)
 
-ggplot(cdf_df, aes(x = AF, y = CDF, color = Superpopulation)) +
-  geom_smooth(se = FALSE, method = "loess", span = 0.2, size = 1) +
+cdf_data <- do.call(rbind, lapply(names(superpopulations), function(pop) {
+  df <- superpopulations[[pop]] %>% arrange(AF)
+  df$CDF <- seq_along(df$AF) / nrow(df)
+  df$Population <- pop
+  df
+}))
+
+bin_width <- 0.01
+smoothed_cdf_binned <- cdf_data %>%
+  mutate(AF_bin = cut(AF, breaks = seq(0, 1, by = bin_width), include.lowest = TRUE)) %>%
+  group_by(Population, AF_bin) %>%
+  summarise(
+    AF_mid = mean(AF, na.rm = TRUE),
+    CDF = max(CDF),
+    .groups = "drop"
+  )
+
+# Plot
+ggplot(smoothed_cdf_binned, aes(x = AF_mid, y = CDF, color = Population)) +
+  geom_line(size = 1) +
   theme_classic() +
   labs(
-    title = "Smoothed Cumulative Distribution of Allele Frequencies",
     x = "Allele Frequency",
-    y = "Cumulative Proportion"
+    y = "Cumulative Proportion") +
+  scale_x_continuous(expand = c(0,0), limits = c(0,1)) +
+  theme(
+    text = element_text(size = 14)
   )
+#ggsave("figures/cumulative_AFs.png", dpi = 300, width = 8, height = 4)
+
 ```
 ## Fixed Alleles
 
@@ -374,27 +395,30 @@ ggsave("figures/fixed_variants.png", dpi=300, width = 6, height = 4)
 
 ```{r phenotype_dist}
 # reading in the bedtools summary file and manipulating the rows so they can be plotted
-lines <- read_lines("gwas_1000_genomes/bedtools_summary.txt")[-1] # reads in the lines of the file, excluding the first line
-bedtools <- tibble(raw = lines) %>%
-  mutate(raw = str_remove(raw, " lines$")) %>%  # Remove " lines" from the end
-  separate(raw, into = c("Superpopulation", "Phenotype"), sep = "_vs_", extra = "merge") %>%  # Split at "_vs_"
-  separate(Phenotype, into = c("Phenotype", "Line_Count"), sep = ": ") %>%  # Split at ": "
-  mutate(Phenotype = str_remove(Phenotype, "_gwas$"),  # Remove "_gwas"
-         Line_Count = as.integer(Line_Count))  # Convert count to integer
-
+#lines <- read_lines("gwas_1000_genomes/bedtools_summary.txt")[-1] # reads in the lines of the file, excluding the first line
+#bedtools <- tibble(raw = lines) %>%
+#  mutate(raw = str_remove(raw, " lines$")) %>%  # Remove " lines" from the end
+#  separate(raw, into = c("Population", "Phenotype"), sep = "_vs_", extra = "merge") %>%  # Split at "_vs_"
+#  separate(Phenotype, into = c("Phenotype", "Line_Count"), sep = ": ") %>%  # Split at ": "
+#  mutate(Phenotype = str_remove(Phenotype, "_gwas$"),  # Remove "_gwas"
+ #        Line_Count = as.integer(Line_Count))  # Convert count to integer
+bedtools <- read.table("gwas_1000_genomes/bedtools_summary.txt", sep = "\t", header = T)
+colnames(bedtools) <- c("Population", "Phenotype", "Line_Count")
+  
 bed_boot <- read.table("preliminary_exploration/bootstrap_superpop_phenotype_results.txt", sep = "\t", header = T)
-bedtools_boot <- full_join(bedtools, bed_boot, by = c("Superpopulation", "Phenotype"))
+colnames(bed_boot)[1] <- "Population"
+bedtools_boot <- full_join(bedtools, bed_boot, by = c("Population", "Phenotype"))
 bedtools_boot <- subset(bedtools_boot, select = -c(Line_Count))
 # creating a new dataframe that merges the dataframes with the number of variants and the phenotypes so the proportion can be calculated
-proportion_df <- full_join(pop, bedtools_boot, by ="Superpopulation")
-proportion_df <- proportion_df[order(proportion_df$Superpopulation),]
+proportion_df <- full_join(pop, bedtools_boot, by ="Population")
+proportion_df <- proportion_df[order(proportion_df$Population),]
 proportion_df$Proportion <- proportion_df$Count / proportion_df$Total_Lines *100
 proportion_df$Adjusted_uCI <- proportion_df$Upper_CI / proportion_df$Total_Lines *100
 proportion_df$Adjusted_lCI <- proportion_df$Lower_CI / proportion_df$Total_Lines *100
 
 phenotype_order <-  c('Cancer', 'Neurological', 'Immunological') # changing the order of the phenotypes so it is more aesthetic
 # plotting the raw numbers of the overlap between the variants and the phenotype groups
-bedtools_plot <- ggplot(bedtools_boot, aes(factor(Phenotype, level = phenotype_order), Count, fill = Superpopulation)) + 
+bedtools_plot <- ggplot(bedtools_boot, aes(factor(Phenotype, level = phenotype_order), Count, fill = Population)) + 
   geom_bar(stat = "identity",position=position_dodge(), color="white",) + 
   geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI), 
                 position = position_dodge(width = 0.9), 
@@ -402,12 +426,13 @@ bedtools_plot <- ggplot(bedtools_boot, aes(factor(Phenotype, level = phenotype_o
                 color = "black") +
   xlab("Phenotype") +
   ylab("Number of Variants") +
+  labs(fill = "Population") +
   theme_classic()
 bedtools_plot
-#ggsave("phenotype_variant_count.png", bedtools_plot, dpi = 300, width = 7, height = 5)
+#ggsave("figures/phenotype_variant_count.png", bedtools_plot, dpi = 300, width = 7, height = 5)
 
 # plotting the proportion of the phenotype overlap compared to the total number of variants for the population
-prop_plot <- ggplot(proportion_df, aes(factor(Phenotype, level = phenotype_order), Proportion, fill = Superpopulation)) + 
+prop_plot <- ggplot(proportion_df, aes(factor(Phenotype, level = phenotype_order), Proportion, fill = Population)) + 
   geom_bar(stat = "identity",position=position_dodge(), color="white",) + 
   geom_errorbar(aes(ymin = Adjusted_lCI, ymax = Adjusted_uCI), 
                 position = position_dodge(width = 0.9), 
@@ -417,7 +442,7 @@ prop_plot <- ggplot(proportion_df, aes(factor(Phenotype, level = phenotype_order
   ylab("Propotion of the total variants (%)") +
   theme_classic()
 prop_plot
-#ggsave("phenotype_variant_proportion.png", prop_plot, dpi = 300, width = 7, height = 5)
+#ggsave("figures/phenotype_variant_proportion.png", prop_plot, dpi = 300, width = 7, height = 5)
 
 ```
 
@@ -585,19 +610,19 @@ ggplot(fixed_af_ancestry, aes(x = Superpopulation, y = AF_1_Not_Studied_Count, f
 library(scales)
 
 
-#regions <- read.table("preliminary_exploration/gencode/gencode_population_region_summary.txt", header = T, sep = "\t")
-#regions <- subset(regions, select = -c(gene))
-#gene_breakdown <- read.table("preliminary_exploration/gencode/gencode_population_gene_summary.txt", header = T, sep = "\t")
-colnames(regions)[1] <- colnames(gene_breakdown)[1] <- "Superpopulation"
+regions <- read.table("preliminary_exploration/gencode/gencode_population_region_summary.txt", header = T, sep = "\t")
+regions <- subset(regions, select = -c(gene))
+gene_breakdown <- read.table("preliminary_exploration/gencode/gencode_population_gene_summary.txt", header = T, sep = "\t")
+colnames(regions)[1] <- colnames(gene_breakdown)[1] <- "Population"
 
 regions_long <- regions %>%
-  pivot_longer(cols = -Superpopulation, names_to = "Feature", values_to = "Count") %>% mutate(Count_scaled = Count / 1e6)
+  pivot_longer(cols = -Population, names_to = "Feature", values_to = "Count") %>% mutate(Count_scaled = Count / 1e6)
 feature_order <- c("transcript", "exon", "CDS", "UTR", "start_codon", "stop_codon")
 # Set the order of the variables
 regions_long$Feature <- factor(regions_long$Feature, levels = feature_order)
 
 # Region Plots
-ggplot(regions_long, aes(x = Feature, y = Count_scaled, fill = Superpopulation)) +
+ggplot(regions_long, aes(x = Feature, y = Count_scaled, fill = Population)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   theme_classic() +
   xlab("Feature Type") +
@@ -606,21 +631,26 @@ ggplot(regions_long, aes(x = Feature, y = Count_scaled, fill = Superpopulation))
 #ggsave("figures/gene_features_gencode.png", dpi=300, width = 6, height = 4)
 
 # regions log transformed 
-ggplot(regions_long, aes(x = Feature, y = Count, fill = Superpopulation)) +
+ggplot(regions_long, aes(x = Feature, y = Count, fill = Population)) +
   geom_bar(stat = "identity", position = position_dodge()) +
-  scale_y_continuous(trans = "log10",
-                     breaks = trans_breaks("log10", function(x) 10^x),
-                     labels = trans_format("log10", math_format(10^.x))) +
+  scale_y_continuous(
+    trans = "log10",
+    breaks = 10^(0:7),
+    labels = trans_format("log10", math_format(10^.x)),
+    expand = c(0, 0),   # removes gap between axis and data
+    limits = c(1, NA),  # forces y-axis to start at 10^0 without cutting bars
+    minor_breaks = rep(1:9, 7) * 10^rep(0:6, each = 9)
+  ) +
   theme_classic() +
   xlab("Feature Type") +
   ylab(expression("Count (Log" [10] * ")")) + 
   theme(legend.position = "none")
-
+#ggsave("figures/population_gene_feature_breakdown.png", dpi=300, width = 6, height = 4)
 
 #remove pseudogenes
-#genes <- gene_breakdown[,!grepl("_pseudogene$",names(gene_breakdown))]
-genes_long <- gene_breakdown %>%
-  pivot_longer(cols = -Superpopulation, names_to = "Gene_Type", values_to = "Count")  %>%
+genes <- gene_breakdown[,!grepl("_pseudogene$",names(gene_breakdown))]
+genes_long <- genes %>%
+  pivot_longer(cols = -Population, names_to = "Gene_Type", values_to = "Count")  %>%
   mutate(Count_scaled = Count / 1e5)
 
 biotype_map <- list(
@@ -644,7 +674,7 @@ gene_counts <- genes_long %>%
   filter(!is.na(Biotype_Group))  # remove unmapped types if needed
 
 grouped_counts <- gene_counts %>%
-  group_by(Superpopulation, Biotype_Group) %>%
+  group_by(Population, Biotype_Group) %>%
   summarise(Total = sum(Count), .groups = "drop")
 
 biotype_order <- grouped_counts %>%
@@ -656,21 +686,26 @@ biotype_order <- grouped_counts %>%
 # Set factor levels to order the x-axis
 grouped_counts$Biotype_Group <- factor(grouped_counts$Biotype_Group, levels = biotype_order)
 
-ggplot(grouped_counts, aes(x = Biotype_Group, y = Total, fill = Superpopulation)) +
+ggplot(grouped_counts, aes(x = Biotype_Group, y = Total, fill = Population)) +
   geom_bar(stat = "identity", position = "dodge") +
-  scale_y_log10(
-    labels = trans_format("log10", math_format(10^.x))
+    scale_y_continuous(
+    trans = "log10",
+    breaks = 10^(0:7),
+    labels = trans_format("log10", math_format(10^.x)),
+    expand = c(0, 0),   # removes gap between axis and data
+    limits = c(1, NA),  # forces y-axis to start at 10^0 without cutting bars
+    minor_breaks = rep(1:9, 7) * 10^rep(0:6, each = 9)
   ) +
   theme_classic() +
-  labs(
-    title = "Grouped Gene Biotypes by Superpopulation",
-    x = "Biotype Group",
-    y = "Count (log10)"
-  ) +
-  theme(
+  xlab("Biotype Group") +
+  ylab(expression("Count (Log" [10] * ")")) + 
+  theme_classic() +
+    theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     text = element_text(size = 14)
   )
+#ggsave("figures/population_gene_biotypes_grouped.png", dpi=300, width = 6, height = 4)
+
 # Order gene types by descending total count and select top 10§
 top_genes <- genes_long %>%
   group_by(Gene_Type) %>%
@@ -682,7 +717,7 @@ df_top10 <- genes_long %>%
   filter(Gene_Type %in% top_genes$Gene_Type) %>%
   mutate(Gene_Type = factor(Gene_Type, levels = top_genes$Gene_Type))
 
-ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Superpopulation)) +
+ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Population)) +
   geom_bar(stat = "identity", position = "dodge") +
   scale_y_continuous(trans = "log10",
                      breaks = trans_breaks("log10", function(x) 10^x),
@@ -694,7 +729,7 @@ ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Superpopulation)) +
     x = "Gene Type")
 #ggsave("figures/gene_types_gencode.png", dpi=300, width = 6, height = 4)
 
-ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Superpopulation)) +
+ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Population)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   theme_classic() +
   xlab("Gene Type") +
@@ -703,5 +738,39 @@ ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Superpopulation)) +
 
 ```
 
+```{r pop}
 
+# read in files for the total number of variants for each superpopulation
+ccre <- read.table("preliminary_exploration/cCRE/ccre_counts.txt", sep = "\t", header = T)
+ccre$adjusted_total <- ccre$total_ccres /1e4
+
+
+# plotting total variants per population
+prom <- ggplot(ccre, aes(Population, promoter, fill = Population)) + geom_bar(stat="identity") +
+  ylab("Number of Variants ") +
+  xlab("Population") +
+  theme_classic() +
+  theme(legend.position="none")
+prom
+# Save high-resolution image
+ggsave("figures/population_promoter_count.png", prom, dpi = 300, width = 6, height = 4)
+
+enh <- ggplot(ccre, aes(Population, enhancer, fill = Population)) + geom_bar(stat="identity") +
+  ylab("Number of Variants ") +
+  xlab("Population") +
+  theme_classic() +
+  theme(legend.position="none")
+enh
+ggsave("figures/population_enhancer_count.png", enh, dpi = 300, width = 6, height = 4)
+
+total <- ggplot(ccre, aes(Population, adjusted_total, fill = Population)) + geom_bar(stat="identity") +
+  ylab(bquote("Number of Variants "(x10^4))) +
+  xlab("Population") +
+  theme_classic() +
+  theme(legend.position="none")
+total
+ggsave("figures/ccre_count.png", total, dpi = 300, width = 6, height = 4)
+
+
+```
 
