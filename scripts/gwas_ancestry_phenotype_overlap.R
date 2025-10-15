@@ -1,4 +1,6 @@
-setwd("/Volumes/phd")
+## This script is to compare the number of studies that involved the given superpopulation and the number of phenotype variants that overlap with those studies – it looks at if the variant was originally studied in that population or not to calculate translatability of the variants
+
+setwd("/Volumes/phd") # if running in R studio on the computer, otherwise change
 
 library(dplyr)
 library(readr)

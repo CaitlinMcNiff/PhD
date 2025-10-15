@@ -1,4 +1,5 @@
 #!/bin/bash
+## counts the number of cCREs in each population file and outputs to a summary file
 
 # Output file
 output="/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/preliminary_exploration/cCRE/ccre_counts.txt"

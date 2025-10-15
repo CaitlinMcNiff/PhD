@@ -1,3 +1,5 @@
+## Bootstrapping analysis to calculate 95% confidence intervals for proportions of GWAS variants in each superpopulation, as well as for the overlap between superpopulations and phenotype groups.
+
 library(dplyr)
 
 # Define total length

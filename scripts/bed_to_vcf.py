@@ -1,3 +1,5 @@
+## Converts BED files of GWAS variants to VCF format for VEP annotation.
+
 import os
 import glob
 

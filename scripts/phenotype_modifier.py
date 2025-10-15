@@ -1,3 +1,5 @@
+## Script makes the phenotype modifications to create neurological, immunological, cancer, and all GWAS files from the NHGRI-EBI GWAS catalog file.
+
 import pandas as pd
 import re
 

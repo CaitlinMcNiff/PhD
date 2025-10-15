@@ -1,4 +1,5 @@
 #!/bin/bash
+### Script to calculate the coverage of various gene features from a the GENCODE GTF file using bedtools. Also calculates the same for each population-specific gencode VCF file.
 
 module load roslin/bedtools/2.31.1  # Load bedtools module
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+## Downloads all 1KGP phase 3 VCF files (hg38) for chromosomes 1-22 and X.
 
 chromosome=('1' '2' '3' '4' '5' '6' '7' '8' '9' '10' '11' '12' '13' '14' '15' '16' '17' '18' '19' '20' '21' '22' 'X')
 

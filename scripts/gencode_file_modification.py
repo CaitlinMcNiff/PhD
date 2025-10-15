@@ -1,3 +1,5 @@
+## Script to modify GENCODE GTF file and run bedtools intersect withthe population specific GWAS files
+
 import gzip
 import os
 import subprocess
@@ -13,14 +15,14 @@ with gzip.open(gencode_input_path, 'rt') as infile, gzip.open(gencode_output_pat
         cols = line.strip().split('\t')
         if len(cols) < 9:
             continue  # skip malformed lines
-        chr_clean = cols[0].replace('chr', '')
+        chr = cols[0].replace('chr', '')
         feature = cols[2]
         start_pos = cols[3]
         end_pos = cols[4]
         strand = cols[6]
         info = cols[8]
 
-        output_line = f"{chr_clean}\t{start_pos}\t{end_pos}\t{strand}\t{feature}\t{info}\n"
+        output_line = f"{chr}\t{start_pos}\t{end_pos}\t{strand}\t{feature}\t{info}\n"
         outfile.write(output_line.encode('utf-8'))
 
 # --- 2. Process population-specific GWAS files into simplified BED files ---

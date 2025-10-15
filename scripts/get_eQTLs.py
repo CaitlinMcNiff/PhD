@@ -1,3 +1,5 @@
+## Script to extract eQTL variant information from GTEx parquet files, format it into BED format, and find intersections with population-specific GWAS variants using bedtools.
+
 import pandas as pd
 import os
 import glob

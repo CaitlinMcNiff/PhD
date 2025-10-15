@@ -1,4 +1,5 @@
 #!/bin/bash
+## Script to intersect population-specific cancer GWAS variants with GENCODE genes using bedtools and also finds the closes genes to each variant using bedtools closest.
 
 # Define input files
 EUR_VARIANTS="../gwas_1000_genomes/EUR_cancer_gwas.bed"
@@ -37,3 +38,13 @@ echo "$EAS_intersect_output"
 awk 'BEGIN {OFS="\t"}{FS="\t"} {print $1, $2, $3, $4, $5, $15}' all_cancer_genes.bed | awk 'BEGIN {FS = ";"} {print $1, $4}' | grep gene_name > all_cancer_varants_genes.txt
 # Count occurrences of each gene and sort by frequency
 awk 'BEGIN {FS=" "}{OFS="\t"} {print $NF}' all_cancer_variants_genes.txt | sort | uniq -c | sort -k1,1r > cancer_gene_count.txt
+
+
+# Closest – find the closest gene to each variant (not just overlapping)
+bedtools closest -a EAS_sorted.bed -b gencode_sorted.bed -d > EAS_cancer_closest_genes.bed
+awk 'BEGIN {OFS="\t"}{FS="\t"} {print $1, $2, $3, $4, $5,$23,$24}' EUR_cancer_closest_genes.bed | awk 'BEGIN {FS = ";"} {print $1, $3}' | grep gene_name > EAS_temp.bed # getting variant ids and gene names
+awk 'BEGIN  {OFS="\t"}{FS=" "} {print $NF}' temp.bed | sort | uniq -c | sort -k1,1rn > EAS_cancer_closest_gene_names.txt # getting gene names and counts
+
+bedtools closest -a EUR_sorted.bed -b gencode_sorted.bed -d > EUR_cancer_closest_genes.bed
+awk 'BEGIN {OFS="\t"}{FS="\t"} {print $1, $2, $3, $4, $5,$23,$24}' EUR_cancer_closest_genes.bed | awk 'BEGIN {FS = ";"} {print $1, $3}' | grep gene_name > EUR_temp.bed # getting variant ids and gene names
+awk 'BEGIN  {OFS="\t"}{FS=" "} {print $NF}' temp.bed | sort | uniq -c | sort -k1,1rn  > EUR_cancer_closest_gene_names.txt # getting gene names and counts

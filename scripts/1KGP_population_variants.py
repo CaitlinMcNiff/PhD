@@ -1,3 +1,5 @@
+## Counts the number of variants in each 1KGP superpopulation (EAS, AMR, AFR, EUR, SAS) across all VCF files in the specified folder. Also counts the number of variants unique to each superpopulation. Outputs results to text files and saves variants for each population to separate VCF files.
+
 import os
 import gzip
 import matplotlib.pyplot as plt
