@@ -1,4 +1,4 @@
-## Script to modify GENCODE GTF file and run bedtools intersect withthe population specific GWAS files
+## Script to modify GENCODE GTF file and run bedtools intersect with the population specific GWAS files
 
 import gzip
 import os

@@ -34,7 +34,7 @@ def map_cancer_type(phenotype_raw: str) -> str:
         return "Other/General"
     p = phenotype_raw.lower()
 
-    # Order matters: check more specific/site terms before broad ones
+    # check more specific/site terms before broad ones
     if "prostate" in p:
         return "Prostate"
     if "breast" in p:
@@ -158,7 +158,7 @@ def main():
         )
     )
 
-    # 7) NEW FILTER: drop rows where EUR and EAS coords are identical
+    # 7) drop rows where EUR and EAS coords are identical
     same_coords = (
         (both_same_cgc["chr_EUR"]   == both_same_cgc["chr_EAS"]) &
         (both_same_cgc["start_EUR"] == both_same_cgc["start_EAS"]) &
@@ -176,8 +176,7 @@ def main():
         .rename(columns={"phenotype_norm":"phenotype"})
     )
 
-    # 9) ALSO: Merge by CANCER TYPE (cross-phenotype grouping)
-    #    This allows different phenotype phrasings that map to the same site to align.
+    # 9) Merge by CANCER TYPE (cross-phenotype grouping) – This allows different phenotype phrasings that map to the same site to align.
     eur_ct = eur.drop_duplicates(subset=["cancer_type","var_key"])
     eas_ct = eas.drop_duplicates(subset=["cancer_type","var_key"])
 
@@ -206,7 +205,7 @@ def main():
         .reset_index(name="n_variant_pairs")
     )
 
-    # 10) Save
+    # 10) Save files 
     cols = ["population","phenotype","cancer_type","gene","rsid","chr","start","end","dist"]
     eur_u[cols].to_csv(OUTDIR/"unique_EUR_by_phenotype.tsv", sep="\t", index=False)
     eas_u[cols].to_csv(OUTDIR/"unique_EAS_by_phenotype.tsv", sep="\t", index=False)

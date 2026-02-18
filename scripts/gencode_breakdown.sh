@@ -1,5 +1,5 @@
 #!/bin/bash
-## Script to analyze GENCODE annotation breakdowns and population-specific variant annotations
+## Script to analyse GENCODE annotation breakdowns and population-specific variant annotations
 
 # Get the breakdown of feature types from the GENCODE GTF file
 awk 'BEGIN {FS = "\t"}{print $5}' gencode_hg38_v47.gtf | sort | uniq -c | sort -nr > gencode_region_breakdown.txt

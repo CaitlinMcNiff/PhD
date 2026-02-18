@@ -79,4 +79,4 @@ for file in "$INPUT_FOLDER"/*_gencode.vcf; do
     done
 done
 
-echo "✅ Done! Results saved to: $POP_OUTPUT"
+echo "Done! Results saved to: $POP_OUTPUT"

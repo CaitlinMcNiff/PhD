@@ -5,7 +5,7 @@
 output="/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/preliminary_exploration/GTEx_eQTLs/eQTL_counts.txt"
 #> "$output"  # Empty the file if it already exists
 
-# Loop through all population files (edit pattern if needed)
+# Loop through all population files
 for file in /exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/preliminary_exploration/GTEx_eQTLs/*_all_GTEx.bed; do
     # Extract population name (e.g., AFR from AFR_file.txt)
     population=$(basename "$file" | cut -d'_' -f1)

@@ -5,7 +5,7 @@ import os
 import glob
 import subprocess
 
-input_folder = '/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/GTEx_hg38_v10'  # Replace with your path
+input_folder = '/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/GTEx_hg38_v10'
 output_file = '/exports/cmvm/eddie/sbms/groups/young-lab/caitlin/phd/all_GTEx_hg38_v10.bed'
 unique_lines = set()
 

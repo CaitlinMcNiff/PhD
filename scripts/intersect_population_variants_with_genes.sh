@@ -35,7 +35,7 @@ echo "$EUR_intersect_output"
 echo "$EAS_intersect_output"
 
 # Tidy up the file bedtools file that has all cancer variants
-awk 'BEGIN {OFS="\t"}{FS="\t"} {print $1, $2, $3, $4, $5, $15}' all_cancer_genes.bed | awk 'BEGIN {FS = ";"} {print $1, $4}' | grep gene_name > all_cancer_varants_genes.txt
+awk 'BEGIN {OFS="\t"}{FS="\t"} {print $1, $2, $3, $4, $5, $15}' all_cancer_genes.bed | awk 'BEGIN {FS = ";"} {print $1, $4}' | grep gene_name > all_cancer_variants_genes.txt
 # Count occurrences of each gene and sort by frequency
 awk 'BEGIN {FS=" "}{OFS="\t"} {print $NF}' all_cancer_variants_genes.txt | sort | uniq -c | sort -k1,1r > cancer_gene_count.txt
 
