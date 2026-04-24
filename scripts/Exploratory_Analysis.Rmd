@@ -85,8 +85,8 @@ pop_plot <- ggplot(pop_boot, aes(Population, Adjusted_lines, fill = Population))
   ylab(bquote("Number of Variants "(x10^7))) +
   xlab("Population") +
   theme_classic() +
-  theme(legend.position="none") +
-  ggtitle("Number of Variants in 1000 Genomes Project Populations")
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Number of Variants in 1000 Genomes Project Populations") 
 pop_plot
 # Save high-resolution image
 #ggsave("figures/population_variant_count.png", pop_plot, dpi = 300, width = 6, height = 4)
@@ -97,7 +97,7 @@ unique_pop_plot <- ggplot(uniq_pop_boot, aes(Population, Adjusted_lines, fill = 
   ylab(bquote("Number of Unique Variants "(x10^6))) +
   xlab("Population") +
   theme_classic() +
-  theme(legend.position="none")+
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5))+
   ggtitle("Number of Population-Specific Variants in 1000 Genomes Project Populations")
 unique_pop_plot
 #ggsave("unique_population_variant_count.png", unique_pop_plot, dpi = 300, width = 6, height = 4)
@@ -143,7 +143,7 @@ ggplot(all_norm, aes(x = CHR, y = Variant_Count, fill = Population)) +
   xlab("Chromosome") +
   ggtitle("Number of Variants in the 1000 Genomes Project Per Chromosome") +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), , legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), , legend.position = "none", plot.title = element_text(hjust = 0.5))
 
 # Histogram of the normalised counts per chromosome for each population
 chr_plt <- ggplot(all_norm, aes(x = CHR, y = Variants_per_bp, fill = Population)) +
@@ -153,7 +153,7 @@ chr_plt <- ggplot(all_norm, aes(x = CHR, y = Variants_per_bp, fill = Population)
   xlab("Chromosome") +
   ggtitle("Number of Variants in the 1000 Genomes Project Per Chromosome, Adjusted by the Size of the Chromosome") +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none", plot.title = element_text(hjust = 0.5))
 chr_plt
 #ggsave("figures/normalised_variants_per_chromosome.png", chr_plt, width = 12, height = 7)
 ```
@@ -281,6 +281,7 @@ ggplot(summary_table, aes(x = as.factor(Num_Populations), y = (Num_Variants/1e6)
   xlab("Number of Populations") +
   ylab(bquote("Number of Variants "(x10^7))) +
   ggtitle("A Bar Plot of How Many Populations a Variant is Present in") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic()
 #ggsave("figures/shared_variants.png", dpi = 300, width = 6, height = 4)
 ```
@@ -306,6 +307,7 @@ afr_plot <- ggplot(af_AFR, aes(AF, (n/1e6))) + geom_bar(stat = "identity", fill 
   xlab("Allele Frequency") +
   ylab(bquote("Number of Variants "(x10^6))) +
   ggtitle("The Distribution of Allele Frequencies in AFR") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic()
 afr_plot
 
@@ -313,6 +315,7 @@ amr_plot <- ggplot(af_AMR, aes(AF, (n/1e6))) + geom_bar(stat = "identity", fill 
   xlab("Allele Frequency") +
   ylab(bquote("Number of Variants "(x10^6))) +
   ggtitle("The Distribution of Allele Frequencies in AMR") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic()
 amr_plot
 
@@ -320,6 +323,7 @@ eas_plot <- ggplot(af_EAS, aes(AF, (n/1e6))) + geom_bar(stat = "identity", fill 
   xlab("Allele Frequency") +
   ylab(bquote("Number of Variants "(x10^6))) +
   ggtitle("The Distribution of Allele Frequencies in EAS") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic()
 eas_plot
 
@@ -327,6 +331,7 @@ eur_plot <- ggplot(af_EUR, aes(AF, (n/1e6))) + geom_bar(stat = "identity", fill 
   xlab("Allele Frequency") +
   ylab(bquote("Number of Variants "(x10^6))) +
   ggtitle("The Distribution of Allele Frequencies in EUR") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic()
 eur_plot
 
@@ -334,6 +339,7 @@ sas_plot <- ggplot(af_SAS, aes(AF, (n/1e6))) + geom_bar(stat = "identity", fill 
   xlab("Allele Frequency") +
   ylab(bquote("Number of Variants "(x10^6))) +
   ggtitle("The Distribution of Allele Frequencies in SAS") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic()
 sas_plot
 ```
@@ -354,7 +360,7 @@ ggplot(AFR, aes(x = CHR, y = AF)) +
   labs(title = "Allele Frequency Distribution per Chromosome (AMR)",
        x = "Chromosome", y = "Allele Frequency") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 
 # AMR 
 ggplot(AMR, aes(x = CHR, y = AF)) +
@@ -362,7 +368,7 @@ ggplot(AMR, aes(x = CHR, y = AF)) +
   labs(title = "Allele Frequency Distribution per Chromosome (AMR)",
        x = "Chromosome", y = "Allele Frequency") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 
 # EAS 
 ggplot(EAS, aes(x = CHR, y = AF)) +
@@ -370,14 +376,14 @@ ggplot(EAS, aes(x = CHR, y = AF)) +
   labs(title = "Allele Frequency Distribution per Chromosome (EAS)",
        x = "Chromosome", y = "Allele Frequency") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 
 ggplot(EUR, aes(x = CHR, y = AF)) +
   geom_violin(trim = FALSE, alpha = 0.7, fill = "#00B0F6") +
   labs(title = "Allele Frequency Distribution per Chromosome (EUR)",
        x = "Chromosome", y = "Allele Frequency") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 
 # SAS 
 ggplot(SAS, aes(x = CHR, y = AF)) +
@@ -385,7 +391,7 @@ ggplot(SAS, aes(x = CHR, y = AF)) +
   labs(title = "Allele Frequency Distribution per Chromosome (SAS)",
        x = "Chromosome", y = "Allele Frequency") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 ```
 
 ### Cumulative Distribution plots of the Allele Frequencies of each population
@@ -406,7 +412,8 @@ ggplot(all_af, aes(x = AF, color = Population)) +
   theme_classic() +
   labs(title = "Cumulative Distribution of Allele Frequencies by Superpopulation",
        x = "Allele Frequency",
-       y = "Cumulative Proportion")
+       y = "Cumulative Proportion")+
+  theme(plot.title = element_text(hjust = 0.5))
 
 superpopulations <- list(AFR = AFR_af, AMR = AMR_af, EAS = EAS_af, EUR = EUR_af, SAS = SAS_af)
 
@@ -436,7 +443,7 @@ ggplot(smoothed_cdf_binned, aes(x = AF_mid, y = CDF, color = Population)) +
     y = "Cumulative Proportion") +
   scale_x_continuous(expand = c(0,0), limits = c(0,1)) +
   theme(
-    text = element_text(size = 14)
+    text = element_text(size = 14), plot.title = element_text(hjust = 0.5)
   )
 #ggsave("figures/cumulative_AFs.png", dpi = 300, width = 8, height = 4)
 
@@ -464,7 +471,8 @@ ggplot(af1, aes(Population, (AF_1_count/1e5), fill = Population)) + geom_bar(sta
   theme(legend.position = "none") +
   xlab("Superpopulation") +
   ylab(bquote("Number of Variants "(x10^5))) +
-  ggtitle("Number of Fixed Alleles (AF=1) in Each Population")
+  ggtitle("Number of Fixed Alleles (AF=1) in Each Population") + 
+  theme(plot.title = element_text(hjust = 0.5))
 #ggsave("figures/fixed_variants.png", dpi=300, width = 6, height = 4)
   
   
@@ -513,6 +521,7 @@ bedtools_plot <- ggplot(bedtools_boot, aes(factor(Phenotype, level = phenotype_o
   ylab("Number of Variants") +
   ggtitle("The Number of Variants in Each Subcategory of Phenotypes by Population") + 
   labs(fill = "Population") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic()
 bedtools_plot
 #ggsave("figures/phenotype_variant_count.png", bedtools_plot, dpi = 300, width = 7, height = 5)
@@ -527,6 +536,7 @@ prop_plot <- ggplot(proportion_df, aes(factor(Phenotype, level = phenotype_order
   xlab("Phenotype") +
   ylab("Propotion of the total variants (%)") +
   ggtitle("The Proportion of Total Population-Variants in Each Subcategory of Phenotypes by Population") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic()
 prop_plot
 #ggsave("figures/phenotype_variant_proportion.png", prop_plot, dpi = 300, width = 7, height = 5)
@@ -579,7 +589,7 @@ ggplot(all_norm, aes(x = CHR, y = Variant_Count, fill = Population)) +
   xlab("Chromosome") +
   ggtitle("The Number of Variants Phenotype-Associated Population Variants Per Chromosome") +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(hjust = 0.5))
 
 # Histogram of the normalised counts per chromosome for each population
 ggplot(all_norm, aes(x = CHR, y = (Variants_per_bp*1e4), fill = Population)) +
@@ -589,7 +599,7 @@ ggplot(all_norm, aes(x = CHR, y = (Variants_per_bp*1e4), fill = Population)) +
   xlab("Chromosome") +
   ggtitle("The Number of Variants Phenotype-Associated Population Variants Per Chromosome Adjusted for the Size of the Chromosome") +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none", plot.title = element_text(hjust = 0.5))
 #ggsave("figures/normalised_variants_phenotypes_per_chr.png", width = 12, height = 7)
 
 
@@ -616,26 +626,31 @@ SAS_pheno$CHR <- factor(SAS_pheno$CHR, levels = c(1:22, "X"))
 ggplot(AFR_pheno, aes(x = CHR, mean(as.numeric(OR), na.rm=T))) + 
   geom_bar(stat = "identity", fill = "#F8766D") +
   labs(x = "Chromosome", y = "Average Effect Size", title = "The Average Effect Size of Phenotype-Associated Population Variants Per Chromosome in AFR") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic() 
 
 ggplot(AMR_pheno, aes(x = CHR, mean(as.numeric(OR), na.rm=T))) + 
   geom_bar(stat = "identity", fill = "#A3A500") +
   labs(x = "Chromosome", y = "Average Effect Size", title = "The Average Effect Size of Phenotype-Associated Population Variants Per Chromosome in AMR") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic() 
 
 ggplot(EAS_pheno, aes(x = CHR, mean(as.numeric(OR), na.rm=T))) + 
   geom_bar(stat = "identity", fill = "#00BF7D") +
   labs(x = "Chromosome", y = "Average Effect Size", title = "The Average Effect Size of Phenotype-Associated Population Variants Per Chromosome in EAS") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic() 
 
 ggplot(EUR_pheno, aes(x = CHR, mean(as.numeric(OR), na.rm=T))) + 
   geom_bar(stat = "identity", fill = "#00B0F6") +
   labs(x = "Chromosome", y = "Average Effect Size", title = "The Average Effect Size of Phenotype-Associated Population Variants Per Chromosome in EUR") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic() 
 
 ggplot(SAS_pheno, aes(x = CHR, mean(as.numeric(OR), na.rm=T))) + 
   geom_bar(stat = "identity", fill = "#E76BF3") +
   labs(x = "Chromosome", y = "Average Effect Size", title = "The Average Effect Size of Phenotype-Associated Population Variants Per Chromosome in SAS") +
+  theme(plot.title = element_text(hjust = 0.5)) +
   theme_classic() 
 
 ```
@@ -662,7 +677,8 @@ study_plot <- ggplot(ancestry_info, aes(x = Superpopulation, y = Number_of_Studi
   ylab("Study Count") +
   theme_classic() +
   theme(legend.position = "none", axis.title.x=element_blank()) +
-  ggtitle("Number of Studies Performed in Each Population")
+  ggtitle("Number of Studies Performed in Each Population") + 
+  theme(plot.title = element_text(hjust = 0.5))
 study_plot
 
 ## Count how many of the studies were performed in the initial or replication stage of the study
@@ -678,7 +694,7 @@ ancestry_plot <- ggplot(ancestry_info, aes(x = Superpopulation, y = Adjusted_Per
   ylab("Not Studied / Study Count (%)") +
   ggtitle("Proportion of the Phenotype-Associated Variants That Are Present in Populations Not Included in the Original GWAS Study") +
   theme_classic() +
-  theme(legend.position = "none", axis.title.x=element_blank())
+  theme(legend.position = "none", axis.title.x=element_blank(), plot.title = element_text(hjust = 0.5))
 ancestry_plot
 
 combined_plot <- (study_plot + ancestry_plot) + 
@@ -715,8 +731,7 @@ set_colors <- c(
 
 ggplot(
   df_long,
-  aes(
-    x = Superpopulation,
+  aes(x = Superpopulation,
     y = Count,
     fill = Superpopulation,
     pattern = Stage,
@@ -725,36 +740,109 @@ ggplot(
     position = position_stack(reverse = TRUE),
     colour = "black",
     linewidth = 0.2,
-    
-    # make the pattern subtle
+    # make the pattern more subtle
     pattern_fill = "black",
     pattern_colour = "black",
     pattern_density = 0.03,
     pattern_spacing = 0.03,
     pattern_size = 0.2,
-    pattern_alpha = 0.25
-  ) +
+    pattern_alpha = 0.25) +
   scale_fill_manual(values = set_colors) +
   scale_pattern_manual(values = c(
     Initial = "none",
-    Replication = "stripe"
-  )) +
+    Replication = "stripe")) +
   scale_alpha_manual(values = c(
     Initial = 1,
-    Replication = 0.75
-  )) +
-  labs(
-    x = "Superpopulation",
+    Replication = 0.75)) +
+  labs(x = "Superpopulation",
     y = "Number of Studies",
     fill = "Superpopulation",
     pattern = "Study Stage",
     alpha = "Study Stage",
-    title = "Number of GWAS Studies Performed in Each Superpopulation by Stage"
-  ) +
+    title = "Number of GWAS Studies Performed in Each Superpopulation by Stage") +
   theme_minimal(base_size = 16) +
-  theme(
-    panel.grid.minor = element_blank()
-  )
+  theme(panel.grid.minor = element_blank(), plot.title = element_text(hjust = 0.5) )
+
+``` 
+### How many populations were involved in a GWAS 
+
+```{r study_counts}
+
+pop_study_counts <- read.table("NHGRI_EBI_GWAS/study_population_counts.txt", header = T)
+
+ggplot(pop_study_counts, aes(x = as.factor(number_of_populations_studied), y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  xlab("Number of Populations") +
+  ylab("Number of Studies") +
+  ggtitle("A Bar Plot of How Many Populations Involved in a GWAS") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+### Upset plot of the combinations of different populations involved in a GWAS 
+
+```{r ancestry_combos}
+
+gwas <- read_tsv("NHGRI_EBI_GWAS/GWAS_ancestry_with_unique_populations.tsv", col_names = TRUE)
+
+# Keep only the columns of interest
+gwas_long <- gwas %>%
+  transmute(
+    Study = .[[3]],
+    Superpopulation = .[[14]]
+  ) %>%
+  filter(!is.na(Superpopulation), Superpopulation != "") %>%
+  distinct()
+
+# Keep only expected superpopulations
+superpops <- c("AFR", "AMR", "EAS", "EUR", "SAS")
+
+gwas_long <- gwas_long %>%
+  filter(Superpopulation %in% superpops)
+
+# Make presence/absence matrix
+pop_presence_df <- gwas_long %>%
+  mutate(value = 1) %>%
+  pivot_wider(
+    names_from = Superpopulation,
+    values_from = value,
+    values_fill = 0
+  ) %>%
+  as.data.frame()
+
+# Remove Study column from matrix, but keep rownames
+rownames(pop_presence_df) <- pop_presence_df$Study
+pop_presence_df$Study <- NULL
+
+# Make sure all superpopulation columns exist, even if one is absent
+for (pop in superpops) {
+  if (!pop %in% colnames(pop_presence_df)) {
+    pop_presence_df[[pop]] <- 0
+  }
+}
+
+# Reorder columns
+pop_presence_df <- pop_presence_df[, superpops]
+
+# Calculate set sizes and sort
+set_sizes <- colSums(pop_presence_df)
+sorted_sets <- names(sort(set_sizes, decreasing = TRUE))
+
+# Plot
+UpSetR::upset(
+  pop_presence_df,
+  nsets = length(sorted_sets),
+  sets = sorted_sets,
+  order.by = "freq",
+  sets.bar.color = set_colors[sorted_sets],
+  main.bar.color = "#333333",
+  matrix.color = "black",
+  matrix.dot.alpha = 1,
+  set_size.show = FALSE,
+  text.scale = c(1.7, 1.6, 1.4, 0, 1.7, 0),
+  keep.order = TRUE
+)
 
 ```
 
@@ -797,7 +885,7 @@ ggplot(regions_long, aes(x = Feature, y = Count_scaled, fill = Population)) +
   xlab("Feature Type") +
   ylab(bquote("Count "(x10^6))) +
   ggtitle("Number of Variants that Occured in Each GENCODE Feature Type by Population")+
-  theme(legend.position = "none")
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 #ggsave("figures/gene_features_gencode.png", dpi=300, width = 6, height = 4)
 
 # regions log transformed 
@@ -815,7 +903,7 @@ ggplot(regions_long, aes(x = Feature, y = Count, fill = Population)) +
   xlab("Feature Type") +
   ylab(expression("Count (Log" [10] * ")")) + 
   ggtitle("Log-Transformed Number of Variants that Occured in Each GENCODE Feature Type by Population") +
-  theme(legend.position = "none")
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 #ggsave("figures/population_gene_feature_breakdown.png", dpi=300, width = 6, height = 4)
 
 #remove pseudogenes
@@ -874,8 +962,8 @@ ggplot(grouped_counts, aes(x = Biotype_Group, y = Total, fill = Population)) +
   theme_classic() +
     theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    text = element_text(size = 14)
-  )
+    text = element_text(size = 14), 
+    plot.title = element_text(hjust = 0.5))
 #ggsave("figures/population_gene_biotypes_grouped.png", dpi=300, width = 6, height = 4)
 
 # Order gene types by descending total count and select top 10§
@@ -908,7 +996,7 @@ ggplot(df_top10, aes(x = Gene_Type, y = Count, fill = Population)) +
   xlab("Gene Type") +
   ylab(bquote("Count "(x10^6))) +
   ggtitle("Top 10 Gene Types by Presence of Phenotype-Associated Population Variants, Log-Transformed") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(hjust = 0.5))
 
 ```
 
@@ -927,7 +1015,7 @@ prom <- ggplot(ccre, aes(Population, promoter, fill = Population)) + geom_bar(st
   xlab("Population") +
   ggtitle("Number of Phenotype-Associated Population Variants in Regions with Promoter-Like Signals in the ENCODE cCRE Database") + 
   theme_classic() +
-  theme(legend.position="none")
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5))
 prom
 # Save high-resolution image
 #ggsave("figures/population_promoter_count.png", prom, dpi = 300, width = 6, height = 4)
@@ -937,7 +1025,7 @@ enh <- ggplot(ccre, aes(Population, enhancer, fill = Population)) + geom_bar(sta
   xlab("Population") +
   ggtitle("Number of Phenotype-Associated Population Variants in Regions with Enhancer-Like Signals in the ENCODE cCRE Database") + 
   theme_classic() +
-  theme(legend.position="none")
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5))
 enh
 #ggsave("figures/population_enhancer_count.png", enh, dpi = 300, width = 6, height = 4)
 
@@ -946,7 +1034,7 @@ total <- ggplot(ccre, aes(Population, adjusted_total, fill = Population)) + geom
   xlab("Population") +
   ggtitle("Number of Phenotype-Associated Population Variants in Suspected CRE Regions in the ENCODE cCRE Database") + 
   theme_classic() +
-  theme(legend.position="none")
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5))
 total
 #ggsave("figures/ccre_count.png", total, dpi = 300, width = 6, height = 4)
 
@@ -968,7 +1056,8 @@ eqtl_plot <- ggplot(eqtls, aes(Population, adjusted_total, fill = Population)) +
   theme_classic() +
   ggtitle("Number of Phenotype-Associated Population Variants in eQTL regions from the GTEx eQTL Database") +
   theme(legend.position="none",
-        axis.title.x = element_blank()) 
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5)) 
 eqtl_plot
 #ggsave("figures/population_eQTL_count.png", eqtl_plot, dpi = 300, width = 6, height = 4)
 
